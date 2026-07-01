@@ -35,6 +35,7 @@ The token remains valid for 24 hours. After expiry you must log in again to obta
     | `publicKey` | Your ECDSA public key. New line characters must be UNIX encoded (`\n`, not `\r\n` or `\r`). |
     | `userId` | Your Bullish user ID, extracted by base64-decoding the `metadata` string of your ECDSA API key. |
     | `signature` | A signed JSON string encoding of `loginPayload`. See the [api-examples](https://github.com/bullish-exchange/api-examples/blob/master/session/generate_jwt_ecdsa.py) for how to compute this. |
+    | `loginPayload.userId` | Your Bullish user ID (same value as the top-level `userId` field). |
     | `loginPayload.nonce` | Epoch timestamp in seconds. |
     | `loginPayload.expirationTime` | Epoch timestamp in seconds, set to 5 minutes in the future. |
     | `loginPayload.biometricsUsed` | Set to `false`. |
@@ -85,7 +86,7 @@ The token remains valid for 24 hours. After expiry you must log in again to obta
 
     To compute the `BX-SIGNATURE` for an HMAC login request, concatenate the following fields in order (no separator):
 
-    ```
+    ```text
     <BX-TIMESTAMP><BX-NONCE>GET/trading-api/v1/users/hmac/login
     ```
 

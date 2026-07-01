@@ -1,7 +1,7 @@
 ---
-title: "Order Management API Endpoints — Create, Query, and Cancel Orders"
+title: "Order Management REST API — Create, Query, and Cancel"
 sidebarTitle: "Orders"
-description: "REST endpoints for managing orders on Bullish Exchange — create limit/market orders, query open and historical orders, cancel and amend via command entry."
+description: "REST endpoints for managing orders on Bullish Exchange — create limit/market orders, query open and historical orders, cancel and amend orders."
 ---
 
 The Orders API provides full order lifecycle management: submitting new orders, querying open and historical orders by ID or filter, and cancelling or amending existing orders via the command entry interface. All write operations (create, cancel, amend) require a valid bearer JWT along with a signed request envelope.
@@ -18,7 +18,6 @@ All authenticated order endpoints require the following HTTP request headers:
 | `BX-NONCE` | Client-side incremented unsigned 64-bit integer, expressed as a string. |
 | `BX-SIGNATURE` | Signature generated using the [signing format](/authentication/request-signing). |
 | `BX-TIMESTAMP` | Number of milliseconds since EPOCH. |
-| `BX-PUBLIC-KEY` | The public key used to generate the JWT. |
 
 Optionally supply `BX-RATELIMIT-TOKEN` (from your trading account) to access higher rate limit tiers.
 
@@ -600,8 +599,8 @@ Sets up or resets Market Maker Protection (MMP) configuration for a trading acco
 
 ### Supported Command Types
 
-- `setMMPCommandV1` — Configure MMP parameters for an underlying asset symbol.
-- `resetMMPCommandV1` — Reset MMP configuration for an underlying asset symbol.
+- `V1SetMMP` — Configure MMP parameters for an underlying asset symbol.
+- `V1ResetMMP` — Reset MMP configuration for an underlying asset symbol.
 
 ### Example Request
 
@@ -613,11 +612,11 @@ curl -X POST "https://api.exchange.bullish.com/trading-api/v2/mmp-configuration"
   -H "BX-NONCE: 1728028800000003" \
   -H "Content-Type: application/json" \
   -d '{
-    "commandType": "setMMPCommandV1",
+    "commandType": "V1SetMMP",
     "tradingAccountId": "111000000000001",
-    "symbol": "BTC",
-    "windowTimeInSeconds": 10,
-    "frozenTimeInSeconds": 30,
+    "underlyingAssetSymbol": "BTC",
+    "windowTimeInSeconds": "10",
+    "frozenTimeInSeconds": "30",
     "quantityLimit": "100",
     "deltaLimit": "50"
   }'

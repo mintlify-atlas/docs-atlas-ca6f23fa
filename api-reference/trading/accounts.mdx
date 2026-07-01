@@ -205,7 +205,7 @@ Returns asset account balances for all assets held in the specified trading acco
 </ResponseField>
 
 <ResponseField name="availableQuantity" type="string">
-  Total assets available to use on the account (total free). Excludes borrowed assets.
+  The assets that are available to use on the account.
 </ResponseField>
 
 <ResponseField name="borrowedQuantity" type="string">
@@ -331,11 +331,16 @@ Transfers assets between two trading accounts. The command must be acknowledged 
 
 ```json
 {
-  "commandType": "V2TransferAsset",
-  "fromTradingAccountId": "111000000000001",
-  "toTradingAccountId": "111000000000002",
-  "assetSymbol": "BTC",
-  "quantity": "0.50000000"
+  "timestamp": "<TIMESTAMP>",
+  "nonce": "<NONCE>",
+  "authorizer": "<AUTHORIZER>",
+  "command": {
+    "commandType": "V1TransferAsset",
+    "assetSymbol": "BTC",
+    "quantity": "0.50000000",
+    "fromTradingAccountId": "111000000000001",
+    "toTradingAccountId": "111000000000002"
+  }
 }
 ```
 
@@ -349,11 +354,16 @@ curl -X POST "https://api.exchange.bullish.com/trading-api/v1/command?commandTyp
   -H "BX-NONCE: 1728028800000001" \
   -H "Content-Type: application/json" \
   -d '{
-    "commandType": "V2TransferAsset",
-    "fromTradingAccountId": "111000000000001",
-    "toTradingAccountId": "111000000000002",
-    "assetSymbol": "BTC",
-    "quantity": "0.50000000"
+    "timestamp": "1728028800000",
+    "nonce": "1728028800000001",
+    "authorizer": "<AUTHORIZER>",
+    "command": {
+      "commandType": "V1TransferAsset",
+      "assetSymbol": "BTC",
+      "quantity": "0.50000000",
+      "fromTradingAccountId": "111000000000001",
+      "toTradingAccountId": "111000000000002"
+    }
   }'
 ```
 

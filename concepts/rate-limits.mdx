@@ -1,5 +1,5 @@
 ---
-title: "Rate Limits for the Bullish Exchange Trading API"
+title: "Rate Limits for the Bullish Exchange API Endpoints"
 sidebarTitle: "Rate Limits"
 description: "Per-category and per-IP rate limits on the Bullish Exchange API — public endpoints, authenticated order endpoints, global limits, and rate limit headers."
 ---
@@ -51,7 +51,7 @@ When rate limits have **not** been exceeded, the following headers are present o
 |---|---|
 | `x-ratelimit-limit` | Maximum number of requests allowed for the specific API category within the current time period. |
 | `x-ratelimit-remaining` | Number of requests remaining in the current time period for the specific API category. |
-| `x-ratelimit-reset` | The start of the next time period when `x-ratelimit-remaining` resets to the maximum. |
+| `x-ratelimit-reset` | The next time period in which `x-ratelimit-remaining` is reset back to the maximum allowed for the specific API category. |
 | `x-ratelimit-global-breach` | `true` if the exchange-wide global limit has been breached; `false` otherwise. |
 
 ## Handling Rate Limit Errors

@@ -1,5 +1,5 @@
 ---
-title: "Authenticate Requests to the Bullish Exchange API"
+title: "Authenticate Your Requests to the Bullish Trading API"
 sidebarTitle: "Overview"
 description: "How Bullish Exchange API authentication works — bearer JWT tokens, API key types, nonce requirements, and the full authenticated request flow."
 ---
@@ -46,6 +46,9 @@ The complete flow for sending an authenticated request to the Bullish Trading AP
   </Step>
   <Step title="Ensure Order of Create/Cancel Order Requests">
     Wait for an acknowledgement response (containing the server-generated `orderId`) before sending the next order request. This guarantees correct nonce ordering and lets you detect errors. See [Request Signing](/authentication/request-signing) for an explanation of the ordering guarantee and out-of-order processing options.
+  </Step>
+  <Step title="How EMS/Brokers Flag Their Executions Sent to Bullish">
+    EMS platforms and brokers can flag their executions by including the `BX-REFERRER` header — a unique identifier assigned by Bullish — on Create Order and Create OTC Trade requests. Contact your relationship manager to obtain your assigned referrer identifier.
   </Step>
 </Steps>
 

@@ -1,7 +1,7 @@
 ---
 title: "Bullish Exchange Market Data WebSocket Streams"
 sidebarTitle: "Market Data"
-description: "Subscribe to real-time order book updates, anonymous trade feed, market tick data, and index price streams via Bullish Exchange unauthenticated WebSockets."
+description: "Subscribe to real-time order book updates, anonymous trade feeds, market tick data, and index price streams via Bullish Exchange WebSockets."
 ---
 
 Bullish Exchange provides four unauthenticated WebSocket streams for real-time market data. No authentication is required to connect — simply open a connection to the relevant endpoint and subscribe to the topics you need. All streams are accessible at the base URL `wss://api.exchange.bullish.com/trading-api/v1/`.
@@ -319,8 +319,19 @@ Bullish Exchange provides four unauthenticated WebSocket streams for real-time m
         "percentage": "0.00",
         "quoteVolume": "5200.0400",
         "symbol": "BTC-USDC-PERP",
+        "type": "ticker",
         "vwap": "5200.0400",
         "currentPrice": "0.0007",
+        "ammData": [
+          {
+            "feeTierId": "1",
+            "currentPrice": "0.0007",
+            "baseReservesQuantity": "96153.00000000",
+            "quoteReservesQuantity": "500005200.0400",
+            "bidSpreadFee": "0.00000005",
+            "askSpreadFee": "0.00000006"
+          }
+        ],
         "markPrice": "26000.0000",
         "fundingRate": "0.114100",
         "openInterest": "9.00000000",

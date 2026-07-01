@@ -1,7 +1,7 @@
 ---
-title: "OTC Trade API Endpoints for Over-the-Counter Execution"
+title: "OTC Trade Endpoints — Create, Query, and Cancel OTC Trades"
 sidebarTitle: "OTC"
-description: "REST endpoints for OTC trades on Bullish Exchange — create, query, and cancel over-the-counter trades programmatically."
+description: "REST endpoints for OTC trades on Bullish Exchange — create, query, and cancel over-the-counter bilateral trades using bearer JWT auth."
 ---
 
 The OTC API allows institutional clients to submit, track, and cancel over-the-counter trades via the Bullish OTC Clearing Facility. OTC trades are bilaterally agreed off-book transactions where both counterparties submit matching legs with a shared `sharedMatchKey`. All OTC endpoints require a valid bearer JWT.
@@ -23,7 +23,7 @@ Returns a paginated list of OTC trades for the authenticated trading account. Su
 </ParamField>
 
 <ParamField query="status" type="string" required={false}>
-  Filter by OTC trade status. E.g. `MATCHED`, `PENDING`, `CANCELLED`, `EXPIRED`.
+  Filter by OTC trade status. One of `COUNTERPARTY_PENDING`, `COUNTERPARTY_PAIRED`, `RISK_PENDING`, `MATCHED`, `CANCELLED`, `REJECTED`.
 </ParamField>
 
 <ParamField query="sharedMatchKey" type="string" required={false}>
@@ -61,7 +61,7 @@ Returns a paginated list of OTC trades for the authenticated trading account. Su
 </ResponseField>
 
 <ResponseField name="status" type="string">
-  Current OTC trade status. E.g. `MATCHED`.
+  Current OTC trade status. One of `COUNTERPARTY_PENDING`, `COUNTERPARTY_PAIRED`, `RISK_PENDING`, `MATCHED`, `CANCELLED`, `REJECTED`.
 </ResponseField>
 
 <ResponseField name="statusReason" type="string">
@@ -117,36 +117,34 @@ curl -X GET "https://api.exchange.bullish.com/trading-api/v2/otc-trades?tradingA
 ### Example Response
 
 ```json
-{
-  "data": [
-    {
-      "otcTradeId": "720551234567890001",
-      "clientOtcTradeId": "20050900225",
-      "sharedMatchKey": "cfBtcXrpMatch001",
-      "status": "MATCHED",
-      "statusReason": "Ok",
-      "statusReasonCode": "1001",
-      "createdAtDatetime": "2024-10-04T08:00:00.000Z",
-      "createdAtTimestamp": "1728028800000",
-      "expireDatetime": "2024-10-04T08:01:00.000Z",
-      "expireTimestamp": "1728028860000",
-      "remarks": "first otc trade with xyz client",
-      "trades": [
-        {
-          "tradeId": "720551234567890002",
-          "symbol": "BTC-USDC-PERP",
-          "price": "98213.00000",
-          "quantity": "1.5000",
-          "quoteAmount": "147319.5000",
-          "baseFee": "0.00000000",
-          "quoteFee": "14.7320",
-          "side": "BUY",
-          "isTaker": true
-        }
-      ]
-    }
-  ]
-}
+[
+  {
+    "otcTradeId": "720551234567890001",
+    "clientOtcTradeId": "20050900225",
+    "sharedMatchKey": "cfBtcXrpMatch001",
+    "status": "MATCHED",
+    "statusReason": "Ok",
+    "statusReasonCode": "1002",
+    "createdAtDatetime": "2024-10-04T08:00:00.000Z",
+    "createdAtTimestamp": "1728028800000",
+    "expireDatetime": "2024-10-04T08:01:00.000Z",
+    "expireTimestamp": "1728028860000",
+    "remarks": "first otc trade with xyz client",
+    "trades": [
+      {
+        "tradeId": "720551234567890002",
+        "symbol": "BTC-USDC-PERP",
+        "price": "98213.00000",
+        "quantity": "1.5000",
+        "quoteAmount": "147319.5000",
+        "baseFee": "0.00000000",
+        "quoteFee": "14.7320",
+        "side": "BUY",
+        "isTaker": true
+      }
+    ]
+  }
+]
 ```
 
 ---
@@ -217,12 +215,24 @@ Both counterparties must submit matching legs using the same `sharedMatchKey`. O
 
 ### Response Fields
 
+<ResponseField name="message" type="string">
+  Message indicating the status of the request. E.g. `"Command acknowledged - CreateOtcTrade"`.
+</ResponseField>
+
+<ResponseField name="requestId" type="string">
+  Unique request ID assigned by the exchange.
+</ResponseField>
+
 <ResponseField name="otcTradeId" type="string">
   Unique Bullish OTC trade ID — use for status queries.
 </ResponseField>
 
 <ResponseField name="clientOtcTradeId" type="string">
   Client-side OTC trade ID echoed from the request.
+</ResponseField>
+
+<ResponseField name="sharedMatchKey" type="string">
+  Shared match key echoed from the request.
 </ResponseField>
 
 ### Example Request
@@ -262,8 +272,11 @@ curl -X POST "https://api.exchange.bullish.com/trading-api/v2/otc-trades" \
 
 ```json
 {
+  "message": "Command acknowledged - CreateOtcTrade",
+  "requestId": "720551234567890000",
   "otcTradeId": "720551234567890001",
-  "clientOtcTradeId": "20050900225"
+  "clientOtcTradeId": "20050900225",
+  "sharedMatchKey": "cfBtcXrpMatch001"
 }
 ```
 

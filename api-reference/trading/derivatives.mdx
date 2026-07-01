@@ -1,7 +1,7 @@
 ---
-title: "Derivatives API Endpoints — Positions, Settlement, and Funding"
+title: "Derivatives API — Positions, Settlement, and Funding Rates"
 sidebarTitle: "Derivatives"
-description: "REST endpoints for Bullish Exchange derivatives trading — query open positions, settlement history, funding rates, and borrow interest for perpetuals and options."
+description: "REST endpoints for Bullish Exchange derivatives — open positions, historical settlement, funding rates, and borrow interest for perpetuals and options."
 ---
 
 The Derivatives API provides authenticated access to perpetual and options position data, historical settlement records, funding rate history, and borrow interest — alongside public endpoints for the option ladder and funding rate history. For information about liquidation and borrower status events, see the [Private WebSocket Data for Borrowers PDF](https://github.com/bullish-exchange/api-docs/blob/master/src/trading-api/next/websocket-private-data-update-messages-for-borrowers.pdf).
@@ -459,6 +459,7 @@ curl -X GET "https://api.exchange.bullish.com/trading-api/v1/option-ladder/BTC-U
   "underlyingPrice": "100000.0000",
   "optionStrikePrice": "70000",
   "markPrice": "30200.0000",
+  "quantity": "1000",
   "openInterest": "0.11442400",
   "openInterestUSD": "1144240.0000",
   "optionType": "CALL",

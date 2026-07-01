@@ -26,7 +26,7 @@ The `BX-NONCE` value is a unique client-side 64-bit unsigned integer. Each reque
 
 Retrieve the current valid nonce bounds from:
 
-```
+```http
 GET /trading-api/v1/nonce
 ```
 
@@ -60,7 +60,7 @@ This signing format applies to:
 
 Concatenate the following fields in order (no separator):
 
-```
+```text
 <BX-TIMESTAMP><BX-NONCE><HTTP_METHOD><REQUEST_PATH><REQUEST_BODY>
 ```
 
@@ -108,7 +108,7 @@ Each trading account has a unique rate limit token that is used to access higher
 
 Retrieve rate limit tokens from:
 
-```
+```http
 GET /trading-api/v1/accounts/trading-accounts
 ```
 
