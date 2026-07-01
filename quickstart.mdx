@@ -1,47 +1,261 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Get started with the Bullish Exchange Trading API"
+sidebarTitle: "Quickstart"
+description: "Make your first authenticated request to the Bullish Exchange API in five steps — from API key generation to placing a live order."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
-
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+This guide walks you through everything you need to go from zero to placing your first live order on Bullish. By the end you will have generated an API key, obtained a JWT session token, looked up your trading account ID, retrieved the current nonce range, and submitted a limit order — all via the REST Trading API.
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+
+  <Step title="Generate an API Key">
+    Before you can call any authenticated endpoint you need an API key. Bullish supports two key types:
+
+    - **ECDSA** — A P-256 public/private key pair. Supports both trading and custody endpoints.
+    - **HMAC** — A shared secret key. Supports trading endpoints only.
+
+    To generate a key:
+
+    1. Log in to your [Bullish account](https://exchange.bullish.com)
+    2. Click your account initials in the upper-right corner, then click **Settings**
+    3. Click **API Keys**, then click **Add API Key**
+    4. Select the key type — **ECDSA** or **HMAC**
+    5. Enter a name in the **Key Name** field
+    6. Optionally add an IP whitelist. If set, all login requests must originate from within that range
+    7. Click **Generate API Key** and securely store the credentials
+
+    <Note>
+      **ECDSA keys** include a `metadata` field. Base64-decode it to extract your `userId`, which is required when calling the ECDSA login endpoint:
+
+      ```bash
+      echo "eyJwdWJsaWNLZXkiOiJQVUJfUjFfNWNpVW52TW5rVThMOVBCWnZaa1BGcjhqdkRnUHpzcHhWNGlqOThIN1JqM1FSNzJyMkEiLCJhY2NvdW50SWQiOjIyMjAwMDAwMDAwMDAwNCwiY3JlZGVudGlhbElkIjoiMTAifQ==" \
+        | base64 --decode
+      # {"publicKey":"PUB_R1_5ciUnvMnkU8L9PBZvZkPFr8jvDgPzspxV4ij98H7Rj3QR72r2A","userId":"12345","accountId":"12345","credentialId":"10"}
+      ```
+    </Note>
+  </Step>
+
+  <Step title="Obtain a JWT Token">
+    All authenticated API requests require an `Authorization: Bearer <JWT_TOKEN>` header. The JWT is valid for **24 hours**.
+
+    Choose the login method that matches your key type.
+
+    <CodeGroup>
+
+    ```bash ECDSA Login (POST /trading-api/v2/users/login)
+    curl -X POST https://api.exchange.bullish.com/trading-api/v2/users/login \
+      -H "Content-Type: application/json" \
+      -d '{
+        "publicKey": "<YOUR_ECDSA_PUBLIC_KEY>",
+        "signature": "<SIGNED_LOGIN_PAYLOAD>",
+        "loginPayload": {
+          "userId": "100008771",
+          "nonce": 1638776636,
+          "expirationTime": 1638776936,
+          "biometricsUsed": false,
+          "sessionKey": null
+        }
+      }'
+    ```
+
+    ```bash HMAC Login (GET /trading-api/v1/users/hmac/login)
+    curl -X GET https://api.exchange.bullish.com/trading-api/v1/users/hmac/login \
+      -H "BX-TIMESTAMP: 1638776636000" \
+      -H "BX-NONCE: 1638776636000001" \
+      -H "BX-PUBLIC-KEY: <YOUR_HMAC_PUBLIC_KEY>" \
+      -H "BX-SIGNATURE: <SIGNED_REQUEST_STRING>"
+    ```
+
+    </CodeGroup>
+
+    **ECDSA request body fields:**
+
+    | Field | Description |
+    |-------|-------------|
+    | `publicKey` | Your ECDSA public key (PEM format, UNIX newline encoded) |
+    | `signature` | Signed JSON string of `loginPayload` using your ECDSA private key |
+    | `loginPayload.userId` | Your user ID extracted from the ECDSA key `metadata` |
+    | `loginPayload.nonce` | Current epoch timestamp in **seconds** (unrelated to the orders API nonce) |
+    | `loginPayload.expirationTime` | Epoch timestamp in seconds, set 5 minutes in the future |
+    | `loginPayload.biometricsUsed` | Always `false` |
+    | `loginPayload.sessionKey` | Always `null` |
+
+    **HMAC request headers:**
+
+    | Header | Description |
+    |--------|-------------|
+    | `BX-TIMESTAMP` | Milliseconds since EPOCH |
+    | `BX-NONCE` | Client-side incremented 64-bit unsigned integer |
+    | `BX-PUBLIC-KEY` | Your HMAC public key |
+    | `BX-SIGNATURE` | HMAC signature of `timestamp + nonce + "GET" + "/trading-api/v1/users/hmac/login"` |
+
+    Both endpoints return the same response:
+
+    ```json
+    {
+      "authorizer": "<AUTHORIZER>",
+      "token": "<JWT_TOKEN>"
+    }
+    ```
+
+    Save both values — `token` is used in the `Authorization` header and `authorizer` is embedded in signed request payloads.
+
+    <Tip>
+      See the [generate JWT Python scripts](https://github.com/bullish-exchange/api-examples/blob/master/session) for complete ECDSA and HMAC examples.
+    </Tip>
+  </Step>
+
+  <Step title="Get Your Trading Account IDs">
+    Most trading endpoints require a `tradingAccountId`. Retrieve all trading accounts associated with your API key:
 
     ```bash
-    npm install your-package
+    curl -X GET https://api.exchange.bullish.com/trading-api/v1/accounts/trading-accounts \
+      -H "Authorization: Bearer <JWT_TOKEN>"
     ```
+
+    **Response (array of trading accounts):**
+
+    ```json
+    [
+      {
+        "tradingAccountId": "111234567890",
+        "tradingAccountName": "algo trading account",
+        "tradingAccountDescription": "algo trading account with experimental strategy",
+        "isPrimaryAccount": "true",
+        "rateLimitToken": "97d98951b12fb11f330dd9cb1b807d888c702679ee602edcf1ebc6bac17ad63d",
+        "isBorrowing": "false",
+        "isLending": "false",
+        "isDefaulted": "false",
+        "maxInitialLeverage": "1",
+        "riskLimitUSD": "10000.0000",
+        "totalCollateralUSD": "13000.0000",
+        "totalBorrowedUSD": "12000.0000",
+        "initialMarginUSD": "0000.0000",
+        "warningMarginUSD": "0000.0000",
+        "liquidationMarginUSD": "0000.0000",
+        "fullLiquidationMarginUSD": "0000.0000",
+        "defaultedMarginUSD": "0000.0000"
+      }
+    ]
+    ```
+
+    Note the `tradingAccountId` and `rateLimitToken` values — you will need them in later steps. You can also pass the `rateLimitToken` in the `BX-RATELIMIT-TOKEN` request header to unlock higher rate limit tiers.
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
+
+  <Step title="Get the Current Nonce Range">
+    Every authenticated write request (order creation, cancellation, etc.) requires a `BX-NONCE` header. The nonce is a unique, client-side incremented 64-bit unsigned integer. The exchange enforces a valid range that is updated daily.
+
+    Retrieve the current nonce range before sending your first order:
 
     ```bash
-    your-cli init
+    curl -X GET https://api.exchange.bullish.com/trading-api/v1/nonce
     ```
+
+    **Response:**
+
+    ```json
+    {
+      "lowerBound": 1700000000000000,
+      "upperBound": 1700086399999999
+    }
+    ```
+
+    | Field | Description |
+    |-------|-------------|
+    | `lowerBound` | Start of today in EPOCH microseconds — the minimum valid nonce value |
+    | `upperBound` | End of today in EPOCH microseconds — the maximum valid nonce value |
+
+    Your `BX-NONCE` value for each request must:
+    - Fall within `[lowerBound, upperBound]`
+    - Be strictly greater than the nonce used in your previous request
+    - Be unique (no reuse)
+
+    <Tip>
+      The current EPOCH time in microseconds is a reliable starting value. Increment by 1 for each subsequent request within the same session.
+    </Tip>
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
+
+  <Step title="Place an Order">
+    With a valid JWT, trading account ID, and a nonce in hand, you can now place an order. The example below places a **BTC/USD limit buy order** at a price of `55071.5000` for a quantity of `1.87000000 BTC` with a `GTC` (good-till-cancelled) time-in-force.
+
+    **Construct the request body (the command):**
+
+    ```json
+    {
+      "timestamp": "<BX-TIMESTAMP value in milliseconds>",
+      "nonce": "<BX-NONCE value>",
+      "authorizer": "<AUTHORIZER from login response>",
+      "command": {
+        "commandType": "V3CreateOrder",
+        "clientOrderId": "1234",
+        "symbol": "BTCUSD",
+        "type": "LMT",
+        "side": "BUY",
+        "price": "55071.5000",
+        "quantity": "1.87000000",
+        "timeInForce": "GTC",
+        "allowBorrow": false,
+        "tradingAccountId": "111234567890"
+      }
+    }
+    ```
+
+    **Submit the order:**
 
     ```bash
-    your-cli start
+    curl -X POST https://api.exchange.bullish.com/trading-api/v2/orders \
+      -H "Authorization: Bearer <JWT_TOKEN>" \
+      -H "BX-SIGNATURE: <ECDSA_OR_HMAC_SIGNATURE>" \
+      -H "BX-TIMESTAMP: 1700000000000" \
+      -H "BX-NONCE: 1700000000000001" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "timestamp": "1700000000000",
+        "nonce": "1700000000000001",
+        "authorizer": "<AUTHORIZER>",
+        "command": {
+          "commandType": "V3CreateOrder",
+          "clientOrderId": "1234",
+          "symbol": "BTCUSD",
+          "type": "LMT",
+          "side": "BUY",
+          "price": "55071.5000",
+          "quantity": "1.87000000",
+          "timeInForce": "GTC",
+          "allowBorrow": false,
+          "tradingAccountId": "111234567890"
+        }
+      }'
     ```
+
+    **Successful response (HTTP 200):**
+
+    ```json
+    {
+      "message": "Command acknowledged - CreateOrder",
+      "requestId": "633910976353665024",
+      "orderId": "633910775316480001",
+      "clientOrderId": "1234"
+    }
+    ```
+
+    A `200` response means the exchange has **acknowledged** the command. Use the returned `orderId` to poll [GET /trading-api/v2/orders/{orderId}](https://api.exchange.bullish.com/trading-api) to confirm the order's current status.
+
+    **Supported `timeInForce` values:**
+
+    | Value | Meaning |
+    |-------|---------|
+    | `GTC` | Good Till Cancelled — stays open until filled or cancelled |
+    | `FOK` | Fill or Kill — cancelled immediately if it cannot be fully filled |
+    | `IOC` | Immediate or Cancel — filled in full or in part; remainder is cancelled |
+
+    <Warning>
+      The `BX-SIGNATURE` header must be computed by signing the concatenation of `timestamp + nonce + "POST" + "/trading-api/v2/orders" + <request body JSON>` using your ECDSA private key (SHA-256 hash → DER-encoded signature → base64) or HMAC secret. See the [Python signing examples](https://github.com/bullish-exchange/api-examples/blob/master/orders) for complete implementations.
+    </Warning>
   </Step>
+
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
-
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+<Note>
+  **Sandbox environments are available** for testing before going live. Use `https://api.simnext.bullish-test.com/trading-api` as the base URL to run the same steps against simulated data without risking real funds. See the [Environments](/environments) page for all available sandbox URLs.
+</Note>

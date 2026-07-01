@@ -1,0 +1,402 @@
+---
+title: "OTC Trade API Endpoints for Over-the-Counter Execution"
+sidebarTitle: "OTC"
+description: "REST endpoints for OTC trades on Bullish Exchange — create, query, and cancel over-the-counter trades programmatically."
+---
+
+The OTC API allows institutional clients to submit, track, and cancel over-the-counter trades via the Bullish OTC Clearing Facility. OTC trades are bilaterally agreed off-book transactions where both counterparties submit matching legs with a shared `sharedMatchKey`. All OTC endpoints require a valid bearer JWT.
+
+---
+
+## GET /trading-api/v2/otc-trades
+
+Returns a paginated list of OTC trades for the authenticated trading account. Supports filtering on `status`, `tradingAccountId`, `sharedMatchKey`, `clientOtcTradeId`, `createdAtDatetime`, and `createdAtTimestamp`.
+
+<Note>
+  **Authentication:** Required.
+</Note>
+
+### Query Parameters
+
+<ParamField query="tradingAccountId" type="string" required>
+  ID of the trading account.
+</ParamField>
+
+<ParamField query="status" type="string" required={false}>
+  Filter by OTC trade status. E.g. `MATCHED`, `PENDING`, `CANCELLED`, `EXPIRED`.
+</ParamField>
+
+<ParamField query="sharedMatchKey" type="string" required={false}>
+  Shared match key used to correlate counterparty legs.
+</ParamField>
+
+<ParamField query="clientOtcTradeId" type="string" required={false}>
+  Filter by unique client OTC trade ID.
+</ParamField>
+
+<ParamField query="createdAtDatetime[gte]" type="string" required={false}>
+  Start of the datetime range (ISO 8601 with millisecond).
+</ParamField>
+
+<ParamField query="createdAtDatetime[lte]" type="string" required={false}>
+  End of the datetime range (ISO 8601 with millisecond).
+</ParamField>
+
+<ParamField query="_pageSize" type="integer" required={false}>
+  Page size. One of: `5`, `25`, `50`, `100`. Defaults to `25`.
+</ParamField>
+
+### Response Fields (array of OtcTradeView objects)
+
+<ResponseField name="otcTradeId" type="string">
+  Unique Bullish OTC trade ID.
+</ResponseField>
+
+<ResponseField name="clientOtcTradeId" type="string">
+  Client-side unique OTC trade ID.
+</ResponseField>
+
+<ResponseField name="sharedMatchKey" type="string">
+  Shared key used to match the two counterparty legs. E.g. `"cfBtcXrpMatch001"`.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current OTC trade status. E.g. `MATCHED`.
+</ResponseField>
+
+<ResponseField name="statusReason" type="string">
+  Human-readable status description. E.g. `"Ok"`.
+</ResponseField>
+
+<ResponseField name="statusReasonCode" type="string">
+  Numeric status reason code. See [Error & Rejection Codes](https://github.com/bullish-exchange/api-docs/wiki/Error-&-Rejection-Codes).
+</ResponseField>
+
+<ResponseField name="createdAtDatetime" type="string">
+  ISO 8601 datetime when the OTC trade was acknowledged by the exchange.
+</ResponseField>
+
+<ResponseField name="createdAtTimestamp" type="string">
+  Millisecond EPOCH timestamp when the OTC trade was acknowledged.
+</ResponseField>
+
+<ResponseField name="expireDatetime" type="string">
+  ISO 8601 datetime when this OTC trade expires if unmatched.
+</ResponseField>
+
+<ResponseField name="expireTimestamp" type="string">
+  Millisecond EPOCH timestamp of OTC trade expiry.
+</ResponseField>
+
+<ResponseField name="remarks" type="string">
+  Optional free-text remarks attached to the OTC trade.
+</ResponseField>
+
+<ResponseField name="trades" type="array">
+  Individual trade legs included in this OTC trade.
+  <Expandable title="Trade leg fields">
+    <ResponseField name="tradeId" type="string">Unique trade ID assigned after matching.</ResponseField>
+    <ResponseField name="symbol" type="string">Market symbol for this leg. E.g. `BTC-USDC-PERP`.</ResponseField>
+    <ResponseField name="price" type="string">Agreed execution price.</ResponseField>
+    <ResponseField name="quantity" type="string">Agreed quantity.</ResponseField>
+    <ResponseField name="quoteAmount" type="string">Notional value in quote or settlement asset.</ResponseField>
+    <ResponseField name="baseFee" type="string">Base asset fee for this leg.</ResponseField>
+    <ResponseField name="quoteFee" type="string">Quote asset fee for this leg.</ResponseField>
+    <ResponseField name="side" type="string">`BUY` or `SELL`.</ResponseField>
+    <ResponseField name="isTaker" type="boolean">Whether this account is the taker on this leg.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v2/otc-trades?tradingAccountId=111000000000001&status=MATCHED" \
+  -H "Authorization: Bearer <JWT>"
+```
+
+### Example Response
+
+```json
+{
+  "data": [
+    {
+      "otcTradeId": "720551234567890001",
+      "clientOtcTradeId": "20050900225",
+      "sharedMatchKey": "cfBtcXrpMatch001",
+      "status": "MATCHED",
+      "statusReason": "Ok",
+      "statusReasonCode": "1001",
+      "createdAtDatetime": "2024-10-04T08:00:00.000Z",
+      "createdAtTimestamp": "1728028800000",
+      "expireDatetime": "2024-10-04T08:01:00.000Z",
+      "expireTimestamp": "1728028860000",
+      "remarks": "first otc trade with xyz client",
+      "trades": [
+        {
+          "tradeId": "720551234567890002",
+          "symbol": "BTC-USDC-PERP",
+          "price": "98213.00000",
+          "quantity": "1.5000",
+          "quoteAmount": "147319.5000",
+          "baseFee": "0.00000000",
+          "quoteFee": "14.7320",
+          "side": "BUY",
+          "isTaker": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+## POST /trading-api/v2/otc-trades
+
+Creates an OTC trade. A `200` response confirms the command was acknowledged. Use [GET /trading-api/v2/otc-trades/{otcTradeId}](#get-trading-apiv2otc-tradesotctradeid) with the returned `otcTradeId` or `clientOtcTradeId` to check status.
+
+Both counterparties must submit matching legs using the same `sharedMatchKey`. One party must set `isTaker: true` and the other `isTaker: false` for the trade to match on the OTC Clearing Facility.
+
+<Note>
+  **Authentication:** Required.
+</Note>
+
+### Request Headers
+
+<ParamField header="Authorization" type="string" required>
+  `Bearer <JWT>`
+</ParamField>
+
+<ParamField header="BX-SIGNATURE" type="string" required>
+  Request signature.
+</ParamField>
+
+<ParamField header="BX-TIMESTAMP" type="string" required>
+  Milliseconds since EPOCH.
+</ParamField>
+
+<ParamField header="BX-NONCE" type="string" required>
+  Client-side incremented unsigned 64-bit integer as a string.
+</ParamField>
+
+### Request Body Fields
+
+<ParamField body="commandType" type="string" required>
+  Must be `"V1CreateOtcTrade"`.
+</ParamField>
+
+<ParamField body="tradingAccountId" type="string" required>
+  ID of the trading account submitting this leg.
+</ParamField>
+
+<ParamField body="sharedMatchKey" type="string" required>
+  Shared key agreed with the counterparty to correlate both legs. E.g. `"cfBtcXrpMatch001"`.
+</ParamField>
+
+<ParamField body="isTaker" type="boolean" required>
+  Whether this account is the taker on the trade. The counterparty must submit the inverse value.
+</ParamField>
+
+<ParamField body="trades" type="array" required>
+  Array of trade legs to include in this OTC trade.
+  <Expandable title="Trade leg fields">
+    <ParamField body="symbol" type="string" required>Market symbol. E.g. `"BTC-USDC-PERP"`.</ParamField>
+    <ParamField body="side" type="string" required>`"BUY"` or `"SELL"`.</ParamField>
+    <ParamField body="price" type="string" required>Agreed price. E.g. `"98213.00000"`.</ParamField>
+    <ParamField body="quantity" type="string" required>Agreed quantity. E.g. `"1.5000"`.</ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="clientOtcTradeId" type="string" required={false}>
+  Client-side unique identifier for this OTC trade. E.g. `"20050900225"`.
+</ParamField>
+
+<ParamField body="remarks" type="string" required={false}>
+  Free-text remarks. E.g. `"first otc trade with xyz client"`.
+</ParamField>
+
+### Response Fields
+
+<ResponseField name="otcTradeId" type="string">
+  Unique Bullish OTC trade ID — use for status queries.
+</ResponseField>
+
+<ResponseField name="clientOtcTradeId" type="string">
+  Client-side OTC trade ID echoed from the request.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X POST "https://api.exchange.bullish.com/trading-api/v2/otc-trades" \
+  -H "Authorization: Bearer <JWT>" \
+  -H "BX-SIGNATURE: <SIGNATURE>" \
+  -H "BX-TIMESTAMP: 1728028800000" \
+  -H "BX-NONCE: 1728028800000001" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "commandType": "V1CreateOtcTrade",
+    "clientOtcTradeId": "20050900225",
+    "sharedMatchKey": "cfBtcXrpMatch001",
+    "tradingAccountId": "111000000000001",
+    "isTaker": true,
+    "remarks": "first otc trade with xyz client",
+    "trades": [
+      {
+        "symbol": "BTC-USDC-PERP",
+        "side": "BUY",
+        "price": "98213.00000",
+        "quantity": "1.5000"
+      },
+      {
+        "symbol": "XRP-USDC-PERP",
+        "side": "SELL",
+        "price": "2.66000000",
+        "quantity": "50.0000"
+      }
+    ]
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "otcTradeId": "720551234567890001",
+  "clientOtcTradeId": "20050900225"
+}
+```
+
+---
+
+## GET /trading-api/v2/otc-trades/{otcTradeId}
+
+Retrieves a specific OTC trade by its exchange-assigned ID.
+
+<Note>
+  **Authentication:** Required.
+</Note>
+
+### Path Parameters
+
+<ParamField path="otcTradeId" type="string" required>
+  Unique Bullish OTC trade ID.
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="tradingAccountId" type="string" required>
+  ID of the trading account.
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v2/otc-trades/720551234567890001?tradingAccountId=111000000000001" \
+  -H "Authorization: Bearer <JWT>"
+```
+
+### Example Response
+
+```json
+{
+  "otcTradeId": "720551234567890001",
+  "clientOtcTradeId": "20050900225",
+  "sharedMatchKey": "cfBtcXrpMatch001",
+  "status": "MATCHED",
+  "statusReason": "Ok",
+  "statusReasonCode": "1001",
+  "createdAtDatetime": "2024-10-04T08:00:00.000Z",
+  "createdAtTimestamp": "1728028800000",
+  "expireDatetime": "2024-10-04T08:01:00.000Z",
+  "expireTimestamp": "1728028860000",
+  "remarks": "first otc trade with xyz client",
+  "trades": [
+    {
+      "tradeId": "720551234567890002",
+      "symbol": "BTC-USDC-PERP",
+      "price": "98213.00000",
+      "quantity": "1.5000",
+      "quoteAmount": "147319.5000",
+      "baseFee": "0.00000000",
+      "quoteFee": "14.7320",
+      "side": "BUY",
+      "isTaker": true
+    },
+    {
+      "tradeId": "720551234567890003",
+      "symbol": "XRP-USDC-PERP",
+      "price": "2.66000000",
+      "quantity": "50.0000",
+      "quoteAmount": "133.0000",
+      "baseFee": "0.00000000",
+      "quoteFee": "0.0133",
+      "side": "SELL",
+      "isTaker": true
+    }
+  ]
+}
+```
+
+---
+
+## POST /trading-api/v2/otc-command
+
+Submits a cancellation command for an OTC trade. Supported command types are `V1CancelOtcTrade` (cancel a single OTC trade) and `V1CancelAllOtcTrades` (cancel all pending OTC trades for a trading account). A `200` response confirms acknowledgement only.
+
+<Note>
+  **Authentication:** Required.
+</Note>
+
+### Request Headers
+
+<ParamField header="Authorization" type="string" required>
+  `Bearer <JWT>`
+</ParamField>
+
+<ParamField header="BX-SIGNATURE" type="string" required>
+  Request signature.
+</ParamField>
+
+<ParamField header="BX-TIMESTAMP" type="string" required>
+  Milliseconds since EPOCH.
+</ParamField>
+
+<ParamField header="BX-NONCE" type="string" required>
+  Client-side incremented unsigned 64-bit integer as a string.
+</ParamField>
+
+### Cancel a Single OTC Trade
+
+```json
+{
+  "commandType": "V1CancelOtcTrade",
+  "otcTradeId": "720551234567890001",
+  "tradingAccountId": "111000000000001"
+}
+```
+
+### Cancel All OTC Trades
+
+```json
+{
+  "commandType": "V1CancelAllOtcTrades",
+  "tradingAccountId": "111000000000001"
+}
+```
+
+### Example Request — Cancel Single OTC Trade
+
+```bash
+curl -X POST "https://api.exchange.bullish.com/trading-api/v2/otc-command" \
+  -H "Authorization: Bearer <JWT>" \
+  -H "BX-SIGNATURE: <SIGNATURE>" \
+  -H "BX-TIMESTAMP: 1728028800000" \
+  -H "BX-NONCE: 1728028800000002" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "commandType": "V1CancelOtcTrade",
+    "otcTradeId": "720551234567890001",
+    "tradingAccountId": "111000000000001"
+  }'
+```

@@ -1,0 +1,79 @@
+---
+title: "Bullish API Environments: Production and Sandbox Base URLs"
+sidebarTitle: "Environments"
+description: "Base URLs for the Bullish Exchange API across production, API sandbox, security sandbox, and Direct Connect environments for AWS and GCP."
+---
+
+The Bullish Exchange API is available across multiple environments — production for live trading, an API sandbox for integration testing, and a security sandbox for bug-bounty research. Each environment exposes the same API surface so you can develop and validate against simulated data before pointing your client at production.
+
+## Trading API Environments
+
+The Trading API base URLs are listed below. Append a versioned path such as `/v2/orders` or `/v1/accounts/trading-accounts` to any of these base URLs to form a complete endpoint.
+
+| Environment | Base URL | Notes |
+|-------------|----------|-------|
+| **Production** | `https://api.exchange.bullish.com/trading-api` | Primary public endpoint |
+| **Production** | `https://registered.api.exchange.bullish.com/trading-api` | Registered-user variant |
+| **Production — Direct Connect** | `https://prod.access.bullish.com/trading-api` | AWS PrivateLink / GCP PSC |
+| **Security Sandbox** | `https://api.bugbounty.bullish.com/trading-api` | Bug-bounty programme only |
+| **API Sandbox** | `https://api.simnext.bullish-test.com/trading-api` | Integration testing |
+| **API Sandbox** | `https://registered.api.simnext.bullish-test.com/trading-api` | Registered-user sandbox variant |
+| **API Sandbox — Direct Connect** | `https://simnext.access.bullish.com/trading-api` | Sandbox Direct Connect |
+
+## Aggregator API Environments
+
+The Aggregator API provides unauthenticated public market data (tickers, order books, recent trades).
+
+| Environment | Base URL |
+|-------------|----------|
+| **Production** | `https://api.exchange.bullish.com/aggregator-api/v1` |
+| **Security Sandbox** | `https://api.bugbounty.bullish.com/aggregator-api/v1` |
+| **API Sandbox** | `https://api.simnext.bullish-test.com/aggregator-api/v1` |
+
+## WebSocket Environments
+
+WebSocket streams mirror the REST environments. Connect using `wss://` and authenticate private topics with a JWT cookie.
+
+| Environment | WebSocket Host |
+|-------------|---------------|
+| **Production** | `wss://api.exchange.bullish.com` |
+| **Production** | `wss://registered.api.exchange.bullish.com` |
+| **Production — Direct Connect** | `wss://prod.access.bullish.com` |
+| **API Sandbox** | `wss://api.simnext.bullish-test.com` |
+| **API Sandbox** | `wss://registered.api.simnext.bullish-test.com` |
+| **API Sandbox — Direct Connect** | `wss://simnext.access.bullish.com` |
+
+## GCP Connectivity
+
+When running workloads on Google Cloud Platform, the most optimal network zone for connecting to Bullish is **`asia-southeast1-a`**. Operating within this availability zone minimises round-trip latency to the exchange matching engine.
+
+<Note>
+  The optimal availability zone may change at any time to another zone within `asia-southeast1` for operational reasons. Monitor latency across zones and be prepared to re-route without prior notice.
+</Note>
+
+## Direct Connect (AWS PrivateLink and GCP Private Service Connect)
+
+Direct Connect endpoints bypass the public internet, providing lower and more consistent latency for latency-sensitive strategies. Two private connectivity mechanisms are supported:
+
+- **AWS PrivateLink** — Establishes a private connection between your AWS VPC and the Bullish service endpoint without your traffic traversing the public internet. Bullish will provide the published service IDs required to create the endpoint in your VPC.
+- **GCP Private Service Connect (PSC)** — Allows your GCP VPC to access the Bullish managed service privately. Bullish will provide the published service IDs required to create the PSC endpoint in your project.
+
+The FIX API is **only** accessible via Direct Connect (AWS PrivateLink or GCP PSC) and is not available on the public internet endpoints.
+
+<Note>
+  To obtain AWS or GCP Direct Connect service IDs and to enable FIX API access, contact your Bullish sales representative.
+</Note>
+
+## Choosing the Right Environment
+
+<Note>
+  **Sandbox data is entirely simulated.** Account balances, order books, and trade history in the API Sandbox (`simnext`) environments do not reflect real funds or real market conditions. Always verify your integration in sandbox before switching to a production endpoint.
+</Note>
+
+| Use Case | Recommended Environment |
+|----------|------------------------|
+| Production live trading | `https://api.exchange.bullish.com/trading-api` |
+| Integration & regression testing | `https://api.simnext.bullish-test.com/trading-api` |
+| Security research / bug bounty | `https://api.bugbounty.bullish.com/trading-api` |
+| Low-latency / co-located trading | Direct Connect — `https://prod.access.bullish.com/trading-api` |
+| FIX API access | Direct Connect only (contact Bullish) |

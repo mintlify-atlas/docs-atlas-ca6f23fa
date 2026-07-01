@@ -1,0 +1,473 @@
+---
+title: "Derivatives API Endpoints — Positions, Settlement, and Funding"
+sidebarTitle: "Derivatives"
+description: "REST endpoints for Bullish Exchange derivatives trading — query open positions, settlement history, funding rates, and borrow interest for perpetuals and options."
+---
+
+The Derivatives API provides authenticated access to perpetual and options position data, historical settlement records, funding rate history, and borrow interest — alongside public endpoints for the option ladder and funding rate history. For information about liquidation and borrower status events, see the [Private WebSocket Data for Borrowers PDF](https://github.com/bullish-exchange/api-docs/blob/master/src/trading-api/next/websocket-private-data-update-messages-for-borrowers.pdf).
+
+---
+
+## GET /trading-api/v1/derivatives-positions
+
+Returns the current open derivatives positions for the authenticated trading account. The `openInterest` for a market equals the total quantity of open long plus open short positions across all accounts.
+
+<Note>
+  **Authentication:** Required.
+</Note>
+
+### Query Parameters
+
+<ParamField query="tradingAccountId" type="string" required={false}>
+  ID of the trading account. Mandatory for users with multiple trading accounts.
+</ParamField>
+
+<ParamField query="symbol" type="string" required={false}>
+  Filter by market symbol. E.g. `BTC-USDC-PERP`.
+</ParamField>
+
+<ParamField query="marketType" type="string" required={false}>
+  Filter by market type. E.g. `DATED_FUTURE`, `PERPETUAL`, `OPTION`.
+</ParamField>
+
+<ParamField query="optionType" type="string" required={false}>
+  Filter by option type: `CALL` or `PUT`.
+</ParamField>
+
+<ParamField query="sort" type="string" required={false}>
+  Sort results by market type or option type.
+</ParamField>
+
+### Response Fields (array of DerivativesPositionResponse)
+
+<ResponseField name="tradingAccountId" type="string">
+  ID of the trading account.
+</ResponseField>
+
+<ResponseField name="symbol" type="string">
+  Derivatives market symbol. E.g. `BTC-USDC-PERP`.
+</ResponseField>
+
+<ResponseField name="side" type="string">
+  Position side: `BUY` (long) or `SELL` (short).
+</ResponseField>
+
+<ResponseField name="quantity" type="string">
+  Current position size in base asset units.
+</ResponseField>
+
+<ResponseField name="notional" type="string">
+  Notional value of the current position, calculated using the mark price.
+</ResponseField>
+
+<ResponseField name="entryNotional" type="string">
+  Notional value using the average entry price.
+</ResponseField>
+
+<ResponseField name="mtmPnl" type="string">
+  Sum of all mark-to-market profits and losses plus realized trading P&L since the last settlement.
+</ResponseField>
+
+<ResponseField name="reportedMtmPnl" type="string">
+  P&L from net price change since the last time the absolute quantity decreased. Updated with every mark-to-market; not updated during settlement or position size increases.
+</ResponseField>
+
+<ResponseField name="reportedFundingPnl" type="string">
+  Sum of all funding payments received since the position was opened. Updated every time funding is paid.
+</ResponseField>
+
+<ResponseField name="realizedPnl" type="string">
+  Total profits realized since the trading account first opened this position. Updated only when the position's absolute size is reduced.
+</ResponseField>
+
+<ResponseField name="settlementAssetSymbol" type="string">
+  Settlement asset symbol. E.g. `USDC`.
+</ResponseField>
+
+<ResponseField name="createdAtDatetime" type="string">
+  ISO 8601 datetime when the position was created.
+</ResponseField>
+
+<ResponseField name="createdAtTimestamp" type="string">
+  Millisecond EPOCH timestamp when the position was created.
+</ResponseField>
+
+<ResponseField name="updatedAtDatetime" type="string">
+  ISO 8601 datetime when the position was last updated.
+</ResponseField>
+
+<ResponseField name="updatedAtTimestamp" type="string">
+  Millisecond EPOCH timestamp when the position was last updated.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/derivatives-positions?tradingAccountId=111000000000001" \
+  -H "Authorization: Bearer <JWT>"
+```
+
+### Example Response
+
+```json
+[
+  {
+    "tradingAccountId": "111000000000001",
+    "symbol": "BTC-USDC-PERP",
+    "side": "BUY",
+    "quantity": "1.50000000",
+    "notional": "75300.0000",
+    "entryNotional": "74000.0000",
+    "mtmPnl": "1300.0000",
+    "reportedMtmPnl": "1300.0000",
+    "reportedFundingPnl": "-15.0000",
+    "realizedPnl": "0.0000",
+    "settlementAssetSymbol": "USDC",
+    "createdAtDatetime": "2024-10-01T08:00:00.000Z",
+    "createdAtTimestamp": "1727769600000",
+    "updatedAtDatetime": "2024-10-04T08:00:00.000Z",
+    "updatedAtTimestamp": "1728028800000"
+  }
+]
+```
+
+---
+
+## GET /trading-api/v1/history/derivatives-settlement
+
+Returns paginated historical derivatives settlement records. Each entry represents a periodic settlement event (typically hourly). Only the last 90 days of data are available.
+
+<Note>
+  **Authentication:** Required.
+</Note>
+
+### Query Parameters
+
+<ParamField query="tradingAccountId" type="string" required={false}>
+  ID of the trading account. Mandatory for users with multiple trading accounts.
+</ParamField>
+
+<ParamField query="symbol" type="string" required={false}>
+  Filter by market symbol. E.g. `BTC-USDC-PERP`.
+</ParamField>
+
+<ParamField query="settlementDatetime[gte]" type="string" required>
+  Start of the settlement datetime window (ISO 8601 with millisecond).
+</ParamField>
+
+<ParamField query="settlementDatetime[lte]" type="string" required>
+  End of the settlement datetime window (ISO 8601 with millisecond).
+</ParamField>
+
+<ParamField query="_pageSize" type="integer" required={false}>
+  Page size. One of: `5`, `25`, `50`, `100`. Defaults to `25`.
+</ParamField>
+
+### Response Fields (array of DerivativesSettlementResponse)
+
+<ResponseField name="tradingAccountId" type="string">
+  ID of the trading account.
+</ResponseField>
+
+<ResponseField name="symbol" type="string">
+  Market symbol. E.g. `BTC-USDC-PERP`.
+</ResponseField>
+
+<ResponseField name="side" type="string">
+  Position side at settlement: `BUY` or `SELL`.
+</ResponseField>
+
+<ResponseField name="settlementQuantity" type="string">
+  Position size at the time of settlement.
+</ResponseField>
+
+<ResponseField name="deltaTradingQuantity" type="string">
+  Change in position size due to trading activity since the last settlement.
+</ResponseField>
+
+<ResponseField name="mtmPnl" type="string">
+  Mark-to-market profit/loss accumulated since the last settlement.
+</ResponseField>
+
+<ResponseField name="fundingPnl" type="string">
+  Funding profit/loss accumulated since the last settlement (perpetuals only).
+</ResponseField>
+
+<ResponseField name="eventType" type="string">
+  Settlement event type. E.g. `"settlementUpdate"`.
+</ResponseField>
+
+<ResponseField name="settlementMarkPrice" type="string">
+  Mark price at which the position was settled for this cycle.
+</ResponseField>
+
+<ResponseField name="settlementIndexPrice" type="string">
+  Index price at which the position was settled for this cycle.
+</ResponseField>
+
+<ResponseField name="settlementFundingRate" type="string">
+  Funding rate applied at this settlement cycle (perpetuals only). E.g. `"10.0"`.
+</ResponseField>
+
+<ResponseField name="settlementDatetime" type="string">
+  ISO 8601 datetime of the settlement event.
+</ResponseField>
+
+<ResponseField name="settlementTimestamp" type="string">
+  Millisecond EPOCH timestamp of the settlement event.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/history/derivatives-settlement?tradingAccountId=111000000000001&settlementDatetime%5Bgte%5D=2024-10-01T00%3A00%3A00.000Z&settlementDatetime%5Blte%5D=2024-10-04T23%3A59%3A59.000Z" \
+  -H "Authorization: Bearer <JWT>"
+```
+
+### Example Response
+
+```json
+[
+  {
+    "tradingAccountId": "111000000000001",
+    "symbol": "BTC-USDC-PERP",
+    "side": "BUY",
+    "settlementQuantity": "1.50000000",
+    "deltaTradingQuantity": "0.00000000",
+    "mtmPnl": "125.0000",
+    "fundingPnl": "-5.0000",
+    "eventType": "settlementUpdate",
+    "settlementMarkPrice": "50200.0000",
+    "settlementIndexPrice": "50100.0000",
+    "settlementFundingRate": "0.01",
+    "settlementDatetime": "2024-10-04T08:00:00.000Z",
+    "settlementTimestamp": "1728028800000"
+  }
+]
+```
+
+---
+
+## GET /trading-api/v1/history/markets/{symbol}/funding-rate
+
+Returns the historical hourly funding rate for a perpetual market. Only the last 90 days of data are available.
+
+<Note>
+  **Authentication:** Not required.
+</Note>
+
+### Path Parameters
+
+<ParamField path="symbol" type="string" required>
+  Perpetual market symbol. E.g. `BTC-USDC-PERP`.
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="updatedAtDatetime[gte]" type="string" required={false}>
+  Start of the datetime range (ISO 8601 with millisecond).
+</ParamField>
+
+<ParamField query="updatedAtDatetime[lte]" type="string" required={false}>
+  End of the datetime range (ISO 8601 with millisecond).
+</ParamField>
+
+<ParamField query="_pageSize" type="integer" required={false}>
+  Page size. One of: `5`, `25`, `50`, `100`. Defaults to `25`.
+</ParamField>
+
+### Response Fields (array)
+
+<ResponseField name="fundingRate" type="string">
+  The funding rate for this hour. E.g. `"0.0001"`.
+</ResponseField>
+
+<ResponseField name="updatedAtDatetime" type="string">
+  ISO 8601 datetime of the last funding rate update for the hour. E.g. `"2024-09-16T12:59:59.000Z"`.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/history/markets/BTC-USDC-PERP/funding-rate?updatedAtDatetime%5Bgte%5D=2024-10-01T00%3A00%3A00.000Z&updatedAtDatetime%5Blte%5D=2024-10-04T00%3A00%3A00.000Z"
+```
+
+### Example Response
+
+```json
+[
+  {
+    "fundingRate": "0.0001",
+    "updatedAtDatetime": "2024-10-03T23:59:59.000Z"
+  },
+  {
+    "fundingRate": "-0.0002",
+    "updatedAtDatetime": "2024-10-04T00:59:59.000Z"
+  }
+]
+```
+
+---
+
+## GET /trading-api/v1/history/borrow-interest
+
+Returns paginated historical hourly borrow interest records for a specific asset. Each entry represents the hourly borrow quantities. The interest charged can be derived as: `interest = totalBorrowedQuantity - borrowedQuantity`. Only the last 90 days of data are available.
+
+<Note>
+  **Authentication:** Required. **Rate limited:** Yes.
+</Note>
+
+### Query Parameters
+
+<ParamField query="assetSymbol" type="string" required>
+  Asset symbol to query borrow interest for. E.g. `BTC`.
+</ParamField>
+
+<ParamField query="createdAtDatetime[gte]" type="string" required>
+  Start of the datetime range (ISO 8601 with millisecond).
+</ParamField>
+
+<ParamField query="createdAtDatetime[lte]" type="string" required>
+  End of the datetime range (ISO 8601 with millisecond).
+</ParamField>
+
+<ParamField query="tradingAccountId" type="string" required={false}>
+  ID of the trading account. Mandatory for users with multiple trading accounts.
+</ParamField>
+
+<ParamField query="_pageSize" type="integer" required={false}>
+  Page size. One of: `5`, `25`, `50`, `100`. Defaults to `25`.
+</ParamField>
+
+### Response Fields (array of BorrowInterest)
+
+<ResponseField name="assetId" type="string">
+  Unique asset ID.
+</ResponseField>
+
+<ResponseField name="assetSymbol" type="string">
+  Asset symbol. E.g. `BTC`.
+</ResponseField>
+
+<ResponseField name="borrowedQuantity" type="string">
+  The principal borrowed quantity during the hour.
+</ResponseField>
+
+<ResponseField name="totalBorrowedQuantity" type="string">
+  Sum of the principal borrowed quantity plus interest charged during the hour. `interest = totalBorrowedQuantity - borrowedQuantity`.
+</ResponseField>
+
+<ResponseField name="createdAtDatetime" type="string">
+  ISO 8601 datetime for the hour in which borrowing occurred or interest was charged. E.g. `"2020-08-21T08:00:00.000Z"`.
+</ResponseField>
+
+<ResponseField name="createdAtTimestamp" type="string">
+  Millisecond EPOCH timestamp for the hour. E.g. `"1621490985000"`.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/history/borrow-interest?assetSymbol=BTC&tradingAccountId=111000000000001&createdAtDatetime%5Bgte%5D=2024-10-01T00%3A00%3A00.000Z&createdAtDatetime%5Blte%5D=2024-10-04T23%3A59%3A59.000Z" \
+  -H "Authorization: Bearer <JWT>"
+```
+
+### Example Response
+
+```json
+[
+  {
+    "assetId": "1",
+    "assetSymbol": "BTC",
+    "borrowedQuantity": "1.00000000",
+    "totalBorrowedQuantity": "1.00003425",
+    "createdAtDatetime": "2024-10-04T08:00:00.000Z",
+    "createdAtTimestamp": "1728028800000"
+  }
+]
+```
+
+---
+
+## GET /trading-api/v1/option-ladder
+
+Returns available options contracts with pricing, implied volatilities, and Greeks (delta, gamma, theta, vega). Useful for scanning the full option surface for a given underlying asset.
+
+<Note>
+  **Authentication:** Not required.
+</Note>
+
+### Query Parameters
+
+<ParamField query="baseSymbol" type="string" required>
+  Base asset symbol. E.g. `BTC`.
+</ParamField>
+
+<ParamField query="expiry" type="string" required={false}>
+  Filter by option expiry date.
+</ParamField>
+
+<ParamField query="type" type="string" required={false}>
+  Filter by option type: `CALL` or `PUT`.
+</ParamField>
+
+<ParamField query="sort" type="string" required={false}>
+  Sort results by option type or expiry datetime.
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/option-ladder?baseSymbol=BTC&type=CALL"
+```
+
+---
+
+## GET /trading-api/v1/option-ladder/{symbol}
+
+Returns the option ladder entry for a specific option market, including pricing metrics and Greeks.
+
+<Note>
+  **Authentication:** Not required.
+</Note>
+
+### Path Parameters
+
+<ParamField path="symbol" type="string" required>
+  Option market symbol. Only option markets are supported. E.g. `BTC-USDC-20241004-70000-C`.
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/option-ladder/BTC-USDC-20241004-70000-C"
+```
+
+### Example Response
+
+```json
+{
+  "symbol": "BTC-USDC-20241004-70000-C",
+  "baseSymbol": "BTC",
+  "settlementAssetSymbol": "USDC",
+  "bid": "90000.0000",
+  "ask": "91000.0000",
+  "bidQuantity": "0.5",
+  "askQuantity": "0.3",
+  "bidIVPercentage": "72.5",
+  "askIVPercentage": "73.1",
+  "underlyingPrice": "100000.0000",
+  "optionStrikePrice": "70000",
+  "markPrice": "30200.0000",
+  "openInterest": "0.11442400",
+  "openInterestUSD": "1144240.0000",
+  "optionType": "CALL",
+  "expiryDatetime": "2024-10-04T08:00:00.000Z",
+  "greeks": {
+    "delta": "0.98",
+    "gamma": "0.01",
+    "theta": "-0.17",
+    "vega": "0.05"
+  }
+}
+```

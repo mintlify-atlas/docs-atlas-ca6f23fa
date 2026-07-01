@@ -1,0 +1,75 @@
+---
+title: "Authenticate Requests to the Bullish Exchange API"
+sidebarTitle: "Overview"
+description: "How Bullish Exchange API authentication works — bearer JWT tokens, API key types, nonce requirements, and the full authenticated request flow."
+---
+
+The Bullish Exchange API uses bearer-based authentication. Every private endpoint requires an `Authorization: Bearer <JWT_TOKEN>` header. JWT tokens are valid for **24 hours**, after which you must generate a new one. Two API key types are supported — ECDSA and HMAC — each with different capabilities and signing procedures.
+
+## Authentication Model
+
+All authenticated requests carry two independent pieces of identity:
+
+- **JWT token** — placed in the `Authorization` header; proves who you are and that the session is active.
+- **BX-SIGNATURE** — a per-request cryptographic signature computed from the request contents and placed in a request header; proves the request body was not tampered with.
+
+Both must be present and valid for a request to be accepted.
+
+## How To Send Authenticated Requests
+
+The complete flow for sending an authenticated request to the Bullish Trading API involves the following steps:
+
+<Steps>
+  <Step title="Generate an API Key">
+    Create an ECDSA or HMAC API key from the Bullish web UI. See [API Keys](/authentication/api-keys) for detailed instructions.
+  </Step>
+  <Step title="Add the Authorization Header">
+    Every authenticated request must include the header `Authorization: Bearer <JWT_TOKEN>`. The JWT is valid for 24 hours.
+  </Step>
+  <Step title="Generate a JWT Token">
+    Exchange your API key credentials for a JWT token. ECDSA keys use `POST /trading-api/v2/users/login`; HMAC keys use `GET /trading-api/v1/users/hmac/login`. See [JWT Tokens](/authentication/jwt-tokens) for the full request format.
+  </Step>
+  <Step title="Construct the BX-NONCE Header">
+    Generate a unique, monotonically increasing 64-bit unsigned integer for each request. Retrieve the valid range from `GET /trading-api/v1/nonce`. See [Request Signing](/authentication/request-signing) for details.
+  </Step>
+  <Step title="Construct the Command You Want to Send">
+    Build the JSON-encoded `<COMMAND>` payload for your request. All fields must have a value (use `null` for absent values), and fields must be specified in the order presented in the API documentation.
+  </Step>
+  <Step title="Construct the BX-SIGNATURE Header">
+    Sign the request by concatenating the timestamp, nonce, HTTP method, request path, and request body, then hashing and signing with your ECDSA private key or HMAC secret. See [Request Signing](/authentication/request-signing) for the exact algorithm.
+  </Step>
+  <Step title="Fetch Trading Account IDs">
+    Many endpoints require a `tradingAccountId`. Retrieve your trading account IDs from `GET /trading-api/v1/accounts/trading-accounts` before making trading requests.
+  </Step>
+  <Step title="Send the HTTP Authenticated Request">
+    Dispatch the request with all required headers: `Authorization`, `BX-TIMESTAMP`, `BX-NONCE`, and `BX-SIGNATURE`.
+  </Step>
+  <Step title="Ensure Order of Create/Cancel Order Requests">
+    Wait for an acknowledgement response (containing the server-generated `orderId`) before sending the next order request. This guarantees correct nonce ordering and lets you detect errors. See [Request Signing](/authentication/request-signing) for an explanation of the ordering guarantee and out-of-order processing options.
+  </Step>
+</Steps>
+
+## API Key Types
+
+<CardGroup cols={2}>
+  <Card title="ECDSA API Keys" icon="key" href="/authentication/api-keys">
+    Public/private key pairs based on the P-256 curve. Required for both trading **and** custody endpoints. The private key is used to sign requests; never share it.
+  </Card>
+  <Card title="HMAC API Keys" icon="shield-halved" href="/authentication/api-keys">
+    Shared-secret keys used for HMAC-based signing. Valid for **trading endpoints only**. Store the secret securely and never expose it publicly.
+  </Card>
+</CardGroup>
+
+## Detailed Guides
+
+<CardGroup cols={3}>
+  <Card title="API Keys" icon="key" href="/authentication/api-keys">
+    Generate ECDSA and HMAC API keys in the Bullish web UI, understand key formats, and decode metadata.
+  </Card>
+  <Card title="JWT Tokens" icon="id-badge" href="/authentication/jwt-tokens">
+    Exchange your API key for a JWT bearer token using ECDSA or HMAC credentials.
+  </Card>
+  <Card title="Request Signing" icon="pen-nib" href="/authentication/request-signing">
+    Construct `BX-NONCE` and `BX-SIGNATURE` headers, manage nonce ordering, and understand rate-limit tokens.
+  </Card>
+</CardGroup>

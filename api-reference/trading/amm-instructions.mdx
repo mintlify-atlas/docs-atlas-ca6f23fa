@@ -1,0 +1,401 @@
+---
+title: "AMM Instruction API Endpoints for Automated Market Making"
+sidebarTitle: "AMM Instructions"
+description: "REST endpoints for Bullish Exchange AMM instructions — create, query, and manage automated market-making liquidity instructions for your trading account."
+---
+
+AMM (Automated Market Making) instructions allow you to deploy liquidity into Bullish's on-chain AMM pools. Each instruction defines a market, an investment amount in base and quote assets, and a price range (lower and upper bounds) within which the AMM will actively make markets. AMM instructions are managed separately from orders and have their own instruction IDs. For a full conceptual guide, see the [AMM Wiki](https://github.com/bullish-exchange/api-docs/wiki/Automated-Market-Making-%28AMM%29-Instructions).
+
+---
+
+## GET /trading-api/v2/amm-instructions
+
+Returns a paginated list of AMM instructions for the authenticated trading account. Supports [pagination](/concepts/pagination).
+
+<Note>
+  **Authentication:** Required. **Rate limited:** Yes.
+</Note>
+
+### Query Parameters
+
+<ParamField query="tradingAccountId" type="string" required>
+  ID of the trading account.
+</ParamField>
+
+<ParamField query="symbol" type="string" required={false}>
+  Filter by market symbol, e.g. `BTCUSD`.
+</ParamField>
+
+<ParamField query="status" type="string" required={false}>
+  Filter by instruction status: `OPEN` or `CLOSED`.
+</ParamField>
+
+<ParamField query="_pageSize" type="integer" required={false}>
+  Page size. One of: `5`, `25`, `50`, `100`. Defaults to `25`.
+</ParamField>
+
+### Response Fields (array of AMMInstruction objects)
+
+<ResponseField name="instructionId" type="string">
+  Unique AMM instruction ID.
+</ResponseField>
+
+<ResponseField name="liquidityId" type="string">
+  Deprecated alias for `instructionId`.
+</ResponseField>
+
+<ResponseField name="symbol" type="string">
+  Market symbol. E.g. `BTCUSD`.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Instruction status: `OPEN` or `CLOSED`.
+</ResponseField>
+
+<ResponseField name="statusReason" type="string">
+  Human-readable status description. E.g. `"Ok"`.
+</ResponseField>
+
+<ResponseField name="statusReasonCode" type="integer">
+  Numeric status reason code.
+</ResponseField>
+
+<ResponseField name="lowerBound" type="string">
+  Lower price bound for the AMM range (in quote currency). E.g. `"0.0013"`.
+</ResponseField>
+
+<ResponseField name="upperBound" type="string">
+  Upper price bound for the AMM range (in quote currency). E.g. `"14000.0000"`.
+</ResponseField>
+
+<ResponseField name="price" type="string">
+  Current AMM price. E.g. `"456.7800"`.
+</ResponseField>
+
+<ResponseField name="basePrice" type="string">
+  Current price of the base asset. E.g. `"345.6700"`.
+</ResponseField>
+
+<ResponseField name="quotePrice" type="string">
+  Current price of the quote asset. E.g. `"1.0000"`.
+</ResponseField>
+
+<ResponseField name="baseInvestQuantity" type="string">
+  Initial base asset investment. E.g. `"0.00000008"`.
+</ResponseField>
+
+<ResponseField name="quoteInvestQuantity" type="string">
+  Initial quote asset investment. E.g. `"0.0009"`.
+</ResponseField>
+
+<ResponseField name="baseCurrentQuantity" type="string">
+  Current base asset held by this instruction (only for `OPEN` instructions). E.g. `"0.00000000"`.
+</ResponseField>
+
+<ResponseField name="quoteCurrentQuantity" type="string">
+  Current quote asset held by this instruction (only for `OPEN` instructions). E.g. `"0.0000"`.
+</ResponseField>
+
+<ResponseField name="baseWithdrawQuantity" type="string">
+  Base asset returned upon termination. E.g. `"0.00000010"`.
+</ResponseField>
+
+<ResponseField name="quoteWithdrawQuantity" type="string">
+  Quote asset returned upon termination. E.g. `"0.0011"`.
+</ResponseField>
+
+<ResponseField name="initialValue" type="string">
+  USD value of invested assets at instruction creation time.
+</ResponseField>
+
+<ResponseField name="currentValue" type="string">
+  Current USD value of assets held by this instruction.
+</ResponseField>
+
+<ResponseField name="finalValue" type="string">
+  USD value of assets at termination (only for `CLOSED` instructions).
+</ResponseField>
+
+<ResponseField name="apy" type="string">
+  Annualised yield percentage since instruction creation. E.g. `"0.0000"`.
+</ResponseField>
+
+<ResponseField name="24HrApy" type="string">
+  APY over the last 24 hours (only for `OPEN` instructions). E.g. `"2.3319"`.
+</ResponseField>
+
+<ResponseField name="24HrYieldEarn" type="string">
+  USD earned in the last 24 hours (only for `OPEN` instructions). E.g. `"0.00"`.
+</ResponseField>
+
+<ResponseField name="yieldEarn" type="string">
+  Total USD earned since creation.
+</ResponseField>
+
+<ResponseField name="impermanentLoss" type="string">
+  Impermanent loss. E.g. `"0.0000"`.
+</ResponseField>
+
+<ResponseField name="initialBasePrice" type="string">
+  Base asset price at instruction creation. E.g. `"100.0000"`.
+</ResponseField>
+
+<ResponseField name="initialQuotePrice" type="string">
+  Quote asset price at instruction creation. E.g. `"0.0100"`.
+</ResponseField>
+
+<ResponseField name="feeTierId" type="string">
+  Fee tier identifier applied to this instruction.
+</ResponseField>
+
+<ResponseField name="baseFee" type="string">
+  Base asset fee earned or charged.
+</ResponseField>
+
+<ResponseField name="quoteFee" type="string">
+  Quote asset fee earned or charged.
+</ResponseField>
+
+<ResponseField name="dislocationEnabled" type="boolean">
+  Whether dislocation is enabled for this instruction.
+</ResponseField>
+
+<ResponseField name="staticSpreadFee" type="string">
+  Static spread fee applied to the instruction.
+</ResponseField>
+
+<ResponseField name="lastDistributedPrice" type="string">
+  (Perpetual markets only) The price used at settlement time. Used for calculating mtmPnl and actual PnL.
+</ResponseField>
+
+<ResponseField name="requestId" type="string">
+  Unique request ID assigned by the exchange.
+</ResponseField>
+
+<ResponseField name="createdAtDatetime" type="string">
+  ISO 8601 datetime when the instruction was acknowledged.
+</ResponseField>
+
+<ResponseField name="createdAtTimestamp" type="string">
+  Millisecond EPOCH timestamp when the instruction was acknowledged.
+</ResponseField>
+
+<ResponseField name="updatedAtDateTime" type="string">
+  ISO 8601 datetime of the most recent update.
+</ResponseField>
+
+<ResponseField name="updatedAtTimestamp" type="string">
+  Millisecond EPOCH timestamp of the most recent update.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v2/amm-instructions?tradingAccountId=111000000000001&status=OPEN" \
+  -H "Authorization: Bearer <JWT>"
+```
+
+### Example Response
+
+```json
+{
+  "data": [
+    {
+      "instructionId": "390755652232282200",
+      "symbol": "BTCUSD",
+      "status": "OPEN",
+      "statusReason": "Ok",
+      "statusReasonCode": 1001,
+      "lowerBound": "40000.0000",
+      "upperBound": "60000.0000",
+      "price": "50200.0000",
+      "basePrice": "50200.0000",
+      "quotePrice": "1.0000",
+      "baseInvestQuantity": "0.50000000",
+      "quoteInvestQuantity": "25000.0000",
+      "baseCurrentQuantity": "0.48000000",
+      "quoteCurrentQuantity": "25100.0000",
+      "apy": "3.1200",
+      "feeTierId": "1",
+      "dislocationEnabled": false,
+      "createdAtDatetime": "2024-10-01T08:00:00.000Z",
+      "createdAtTimestamp": "1727769600000"
+    }
+  ]
+}
+```
+
+---
+
+## POST /trading-api/v2/amm-instructions
+
+Creates a new AMM instruction. A `200` response confirms the command was acknowledged — check [GET /trading-api/v2/amm-instructions/{instructionId}](#get-trading-apiv2amm-instructionsinstructionid) to confirm the final status.
+
+<Note>
+  **Authentication:** Required. **Rate limited:** Yes.
+</Note>
+
+### Request Headers
+
+<ParamField header="Authorization" type="string" required>
+  `Bearer <JWT>`
+</ParamField>
+
+<ParamField header="BX-SIGNATURE" type="string" required>
+  Request signature generated using the signing format.
+</ParamField>
+
+<ParamField header="BX-TIMESTAMP" type="string" required>
+  Milliseconds since EPOCH.
+</ParamField>
+
+<ParamField header="BX-NONCE" type="string" required>
+  Client-side incremented unsigned 64-bit integer as a string.
+</ParamField>
+
+### Request Body Fields
+
+<ParamField body="commandType" type="string" required>
+  Must be `"V3CreateAMMInstruction"`.
+</ParamField>
+
+<ParamField body="symbol" type="string" required>
+  Market symbol to invest liquidity in. E.g. `"BTCUSD"`.
+</ParamField>
+
+<ParamField body="baseQuantity" type="string" required>
+  Base asset quantity to invest. Strict precision not required. Use `"0"` to invest only quote.
+</ParamField>
+
+<ParamField body="quoteQuantity" type="string" required>
+  Quote asset quantity to invest. E.g. `"50000.1"`.
+</ParamField>
+
+<ParamField body="upperBound" type="string" required>
+  Upper price bound of the AMM range in quote currency. E.g. `"25000"`.
+</ParamField>
+
+<ParamField body="lowerBound" type="string" required>
+  Lower price bound of the AMM range in quote currency. E.g. `"20000"`.
+</ParamField>
+
+<ParamField body="feeTierId" type="string" required>
+  Fee tier identifier to apply to this instruction.
+</ParamField>
+
+<ParamField body="tradingAccountId" type="string" required>
+  ID of the trading account.
+</ParamField>
+
+### Response Fields
+
+<ResponseField name="message" type="string">
+  Acknowledgement message. E.g. `"Command acknowledged - CreateAMMInstruction"`.
+</ResponseField>
+
+<ResponseField name="requestId" type="string">
+  Unique request ID assigned by the exchange.
+</ResponseField>
+
+<ResponseField name="instructionId" type="string">
+  Unique AMM instruction ID — use this to query the instruction status.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X POST "https://api.exchange.bullish.com/trading-api/v2/amm-instructions" \
+  -H "Authorization: Bearer <JWT>" \
+  -H "BX-SIGNATURE: <SIGNATURE>" \
+  -H "BX-TIMESTAMP: 1728028800000" \
+  -H "BX-NONCE: 1728028800000001" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "commandType": "V3CreateAMMInstruction",
+    "symbol": "BTCUSD",
+    "baseQuantity": "0",
+    "quoteQuantity": "50000.1",
+    "upperBound": "25000",
+    "lowerBound": "20000",
+    "feeTierId": "1",
+    "tradingAccountId": "111000000000001"
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "message": "Command acknowledged - CreateAMMInstruction",
+  "requestId": "633910976353665024",
+  "instructionId": "633910775316480002"
+}
+```
+
+---
+
+## GET /trading-api/v2/amm-instructions/{instructionId}
+
+Retrieves a specific AMM instruction by its unique instruction ID.
+
+<Note>
+  **Authentication:** Required. **Rate limited:** Yes.
+</Note>
+
+### Path Parameters
+
+<ParamField path="instructionId" type="number" required>
+  Unique AMM instruction ID returned at creation.
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="tradingAccountId" type="string" required>
+  ID of the trading account that owns the instruction.
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v2/amm-instructions/633910775316480002?tradingAccountId=111000000000001" \
+  -H "Authorization: Bearer <JWT>"
+```
+
+### Example Response
+
+```json
+{
+  "instructionId": "633910775316480002",
+  "symbol": "BTCUSD",
+  "status": "OPEN",
+  "statusReason": "Ok",
+  "statusReasonCode": 1001,
+  "lowerBound": "20000",
+  "upperBound": "25000",
+  "price": "22500.0000",
+  "baseInvestQuantity": "0.00000000",
+  "quoteInvestQuantity": "50000.1",
+  "baseCurrentQuantity": "0.00000000",
+  "quoteCurrentQuantity": "50000.1",
+  "apy": "0.0000",
+  "feeTierId": "1",
+  "dislocationEnabled": false,
+  "createdAtDatetime": "2024-10-04T08:00:00.000Z",
+  "createdAtTimestamp": "1728028800000"
+}
+```
+
+---
+
+## Terminating an AMM Instruction
+
+To terminate an active AMM instruction, submit a `V3TerminateAMMInstruction` command via [POST /trading-api/v2/command](/api-reference/trading/orders#post-trading-apiv2command).
+
+```json
+{
+  "commandType": "V3TerminateAMMInstruction",
+  "instructionId": "633910775316480002",
+  "symbol": "BTCUSD",
+  "tradingAccountId": "111000000000001"
+}
+```

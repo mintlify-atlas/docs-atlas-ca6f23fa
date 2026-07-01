@@ -1,0 +1,396 @@
+---
+title: "Bullish Exchange Market Data WebSocket Streams"
+sidebarTitle: "Market Data"
+description: "Subscribe to real-time order book updates, anonymous trade feed, market tick data, and index price streams via Bullish Exchange unauthenticated WebSockets."
+---
+
+Bullish Exchange provides four unauthenticated WebSocket streams for real-time market data. No authentication is required to connect — simply open a connection to the relevant endpoint and subscribe to the topics you need. All streams are accessible at the base URL `wss://api.exchange.bullish.com/trading-api/v1/`.
+
+<Note>
+  Unauthenticated WebSocket connections are subject to a limit of **100 open connections per IP address**. New connection requests are rejected once this limit is reached.
+</Note>
+
+## Available Streams
+
+<Tabs>
+  <Tab title="Multi-OrderBook">
+    ## Multi-OrderBook WebSocket
+
+    **Route:** `/trading-api/v1/market-data/orderbook`
+
+    Subscribe to L1 and L2 order book updates for multiple markets simultaneously over a single connection. This stream also provides a `heartbeat` topic that sends a heartbeat every ~30 seconds as an indicator of platform health — see the [heartbeat overview](/websockets/overview#heartbeat) for details.
+
+    The `publishedAtTimestamp` field in each update denotes the time the message was broadcast to connected WebSocket clients.
+
+    ### Subscription Parameters
+
+    | Parameter | Type   | Description |
+    |:----------|:-------|:------------|
+    | `topic`   | String | `l1Orderbook` — L1 order book<br />`l2Orderbook` — L2 order book<br />`heartbeat` — heartbeat updates |
+    | `symbol`  | String | Market symbol (e.g. `BTCUSD`) |
+
+    ### Subscription Messages
+
+    <CodeGroup>
+      ```json L1 Subscription
+      {
+        "jsonrpc": "2.0",
+        "type": "command",
+        "method": "subscribe",
+        "params": {
+          "topic": "l1Orderbook",
+          "symbol": "BTCUSD"
+        },
+        "id": "1611082473000"
+      }
+      ```
+
+      ```json L2 Subscription
+      {
+        "jsonrpc": "2.0",
+        "type": "command",
+        "method": "subscribe",
+        "params": {
+          "topic": "l2Orderbook",
+          "symbol": "BTCUSD"
+        },
+        "id": "1611082473000"
+      }
+      ```
+
+      ```json Heartbeat Subscription
+      {
+        "jsonrpc": "2.0",
+        "type": "command",
+        "method": "subscribe",
+        "params": {
+          "topic": "heartbeat"
+        },
+        "id": "1611082473000"
+      }
+      ```
+    </CodeGroup>
+
+    ### Response Examples
+
+    **L1 Update Response**
+
+    | Field            | Type   | Description |
+    |:-----------------|:-------|:------------|
+    | `sequenceNumber` | String | Incrementing unique unsigned integer identifying a state of the L1 order book |
+    | `symbol`         | String | Market symbol |
+    | `timestamp`      | String | Time the update was created by the engine |
+    | `datetime`       | String | ISO 8601 time the update was created by the engine |
+    | `bid`            | Array  | Nested array `[price, quantity]` of the highest bid |
+    | `ask`            | Array  | Nested array `[price, quantity]` of the lowest ask |
+
+    ```json
+    {
+      "type": "update",
+      "dataType": "V1TALevel1",
+      "data": {
+        "symbol": "BTCUSD",
+        "bid": ["5199.5000", "61.95995262"],
+        "ask": ["5199.6000", "96.59626782"],
+        "sequenceNumber": "8",
+        "datetime": "2020-06-29T06:28:55.500Z",
+        "timestamp": "1593412135500"
+      }
+    }
+    ```
+
+    **L2 Snapshot Response**
+
+    | Field                 | Type   | Description |
+    |:----------------------|:-------|:------------|
+    | `symbol`              | String | Market symbol |
+    | `bids`                | Array  | Array of up to 200 elements — even indices are prices, odd indices are absolute quantities |
+    | `asks`                | Array  | Array of up to 200 elements — even indices are prices, odd indices are absolute quantities |
+    | `sequenceNumberRange` | Array  | Two-element array `[lowerBound, upperBound]` of sequence numbers; equal for initial snapshot |
+    | `datetime`            | String | ISO 8601 time the update was created by the engine |
+    | `timestamp`           | String | Epoch millisecond time the update was created |
+    | `publishedAtTimestamp`| String | Time the update was broadcast to connected WebSocket clients |
+
+    ```json
+    {
+      "type": "snapshot",
+      "dataType": "V1TALevel2",
+      "data": {
+        "symbol": "BTCUSDC",
+        "bids": [
+          "5199.5000", "110.92467647",
+          "5199.4000", "20.92470365",
+          "5199.3000", "0.92473034"
+        ],
+        "asks": [
+          "5199.6000", "96.37848193",
+          "5199.7000", "0.92465082",
+          "5199.8000", "11.04464563"
+        ],
+        "sequenceNumberRange": [1370055970, 1370055970],
+        "datetime": "2025-02-14T07:15:33.797Z",
+        "timestamp": "1739517333797",
+        "publishedAtTimestamp": "1739517333798"
+      }
+    }
+    ```
+
+    <Tip>
+      See the [multi-orderbook Python example](https://github.com/bullish-exchange/api-examples/blob/master/websocket/multi_orderbook_web_socket.py) for a complete working script.
+    </Tip>
+  </Tab>
+
+  <Tab title="Anonymous Trades">
+    ## Unified Anonymous Trades WebSocket
+
+    **Route:** `/trading-api/v1/market-data/trades`
+
+    Subscribe to real-time public trade feeds for multiple markets simultaneously. Instead of receiving trades one by one, trades are delivered in batches.
+
+    Upon subscribing to a market, the client first receives a **snapshot** of the latest 100 trades, followed by batches of real-time trade **updates**.
+
+    The `publishedAtTimestamp` field denotes the time the message was broadcast to connected clients.
+
+    ### Subscription Parameters
+
+    | Parameter | Type   | Description |
+    |:----------|:-------|:------------|
+    | `topic`   | String | `anonymousTrades` |
+    | `symbol`  | String | Market symbol (e.g. `BTCUSDC`) |
+
+    ### Subscription Message
+
+    ```json
+    {
+      "jsonrpc": "2.0",
+      "type": "command",
+      "method": "subscribe",
+      "params": {
+        "topic": "anonymousTrades",
+        "symbol": "BTCUSDC"
+      },
+      "id": "1611082473000"
+    }
+    ```
+
+    ### Trade Response Fields
+
+    | Field                  | Type    | Description |
+    |:-----------------------|:--------|:------------|
+    | `tradeId`              | String  | Unique trade ID |
+    | `symbol`               | String  | Market symbol |
+    | `price`                | String  | Trade price |
+    | `quantity`             | String  | Trade quantity |
+    | `side`                 | String  | Order side (`BUY` or `SELL`) |
+    | `isTaker`              | Boolean | Whether this is the taker's trade |
+    | `otcMatchId`           | String  | Unique OTC match ID |
+    | `otcTradeId`           | String  | Unique Bullish OTC trade ID |
+    | `clientOtcTradeId`     | String  | Unique client OTC trade ID |
+    | `createdAtTimestamp`   | String  | Epoch millisecond time the trade was acknowledged by the exchange |
+    | `createdAtDatetime`    | String  | ISO 8601 time the trade was acknowledged by the exchange |
+    | `publishedAtTimestamp` | String  | Time the update was broadcast to connected WebSocket clients |
+
+    ### Snapshot Response
+
+    ```json
+    {
+      "type": "snapshot",
+      "dataType": "V1TAAnonymousTradeUpdate",
+      "data": {
+        "trades": [
+          {
+            "tradeId": "100069000000063765",
+            "isTaker": true,
+            "price": "23404.8636",
+            "createdAtTimestamp": "1721879160353",
+            "quantity": "0.00029411",
+            "publishedAtTimestamp": "1721879162124",
+            "side": "SELL",
+            "createdAtDatetime": "2024-07-25T03:46:00.353Z",
+            "symbol": "BTCUSDC",
+            "otcMatchId": "1",
+            "otcTradeId": "200069000000063765",
+            "clientOtcTradeId": "300069000000063765"
+          }
+        ],
+        "createdAtTimestamp": "1721879160353",
+        "publishedAtTimestamp": "1721879162125",
+        "symbol": "BTCUSDC"
+      }
+    }
+    ```
+
+    ### Update Response
+
+    After the initial snapshot, subsequent trade updates are delivered in batches:
+
+    ```json
+    {
+      "type": "update",
+      "dataType": "V1TAAnonymousTradeUpdate",
+      "data": {
+        "trades": [
+          {
+            "tradeId": "100028000018887830",
+            "isTaker": true,
+            "price": "111.8940",
+            "createdAtTimestamp": "1722408780738",
+            "quantity": "0.00100000",
+            "publishedAtTimestamp": "1722408780790",
+            "side": "BUY",
+            "createdAtDatetime": "2024-07-31T06:53:00.738Z",
+            "symbol": "BTCUSDC"
+          }
+        ],
+        "createdAtTimestamp": "1722408780786",
+        "publishedAtTimestamp": "1722408780790",
+        "symbol": "BTCUSDC"
+      }
+    }
+    ```
+  </Tab>
+
+  <Tab title="Tick Data">
+    ## Unified Anonymous Tick WebSocket
+
+    **Route:** `/trading-api/v1/market-data/tick`
+
+    Subscribe to real-time price tick updates for multiple markets simultaneously. Upon subscribing, the client first receives a **snapshot** of the latest ticker for the market, followed by real-time **updates**.
+
+    See also the [Get Market Tick](/api-reference/trading/markets) REST endpoint for the full data model.
+
+    ### Subscription Parameters
+
+    | Parameter | Type   | Description |
+    |:----------|:-------|:------------|
+    | `topic`   | String | `tick` |
+    | `symbol`  | String | Market symbol (e.g. `BTCUSDC`) |
+
+    ### Subscription Message
+
+    ```json
+    {
+      "jsonrpc": "2.0",
+      "type": "command",
+      "method": "subscribe",
+      "params": {
+        "topic": "tick",
+        "symbol": "BTCUSD"
+      },
+      "id": "1611082473000"
+    }
+    ```
+
+    ### Keepalive Message
+
+    ```json
+    {
+      "jsonrpc": "2.0",
+      "type": "command",
+      "method": "keepalivePing",
+      "params": {},
+      "id": "1611082473001"
+    }
+    ```
+
+    ### Tick Response Example
+
+    ```json
+    {
+      "type": "snapshot",
+      "dataType": "V1TATickerResponse",
+      "data": {
+        "askVolume": "3.56000000",
+        "average": "5200.0400",
+        "baseVolume": "1.00000000",
+        "bestAsk": "6543.0000",
+        "bestBid": "2345.0000",
+        "bidVolume": "2.00000000",
+        "change": "0.0000",
+        "close": "5200.0400",
+        "createdAtTimestamp": "1591058897000",
+        "publishedAtTimestamp": "1591058898000",
+        "high": "5200.0400",
+        "last": "5200.0400",
+        "lastTradeDatetime": "2020-06-02T00:40:39.500Z",
+        "lastTradeSize": "1.00000000",
+        "low": "5200.0400",
+        "open": "5200.0400",
+        "percentage": "0.00",
+        "quoteVolume": "5200.0400",
+        "symbol": "BTC-USDC-PERP",
+        "vwap": "5200.0400",
+        "currentPrice": "0.0007",
+        "markPrice": "26000.0000",
+        "fundingRate": "0.114100",
+        "openInterest": "9.00000000",
+        "createdAtDatetime": "2020-06-02T00:48:17.000Z"
+      }
+    }
+    ```
+
+    ## Anonymous Market Data Price Tick WebSocket
+
+    **Route:** `/trading-api/v1/market-data/tick/{symbol}`
+
+    <Note>
+      This endpoint does **not** require a subscription message. On connection, the client immediately receives the current tick for the given market symbol.
+    </Note>
+
+    Connect directly to receive the current ticker snapshot for a specific market. The response format is identical to the Unified Anonymous Tick WebSocket snapshot above.
+  </Tab>
+
+  <Tab title="Index Data">
+    ## Index Data WebSocket
+
+    **Route:** `/trading-api/v1/index-data`
+
+    Subscribe to real-time index price updates for one or more assets. On successful subscription, the client receives a **snapshot** with the current index price, followed by real-time **updates**.
+
+    ### Subscription Parameters
+
+    | Parameter     | Type   | Description |
+    |:--------------|:-------|:------------|
+    | `topic`       | String | `indexPrice` |
+    | `assetSymbol` | String | Asset symbol (e.g. `BTC`, `USDC`) |
+
+    ### Subscription Message
+
+    ```json
+    {
+      "jsonrpc": "2.0",
+      "type": "command",
+      "method": "subscribe",
+      "params": {
+        "topic": "indexPrice",
+        "assetSymbol": "USDC"
+      },
+      "id": "1611082473000"
+    }
+    ```
+
+    ### Index Price Response Fields
+
+    | Field                | Type   | Description |
+    |:---------------------|:-------|:------------|
+    | `assetSymbol`        | String | Asset symbol |
+    | `price`              | String | Price in USD |
+    | `updatedAtDatetime`  | String | ISO 8601 time the index price was updated by the exchange |
+    | `updatedAtTimestamp` | String | Epoch millisecond time the index price was updated by the exchange |
+
+    ### Response Example
+
+    ```json
+    {
+      "type": "update",
+      "dataType": "V1TAIndexPrice",
+      "data": {
+        "assetSymbol": "USDC",
+        "price": "1.0000",
+        "updatedAtDatetime": "2024-06-29T06:29:50.500Z",
+        "updatedAtTimestamp": "1719642590000"
+      }
+    }
+    ```
+  </Tab>
+</Tabs>

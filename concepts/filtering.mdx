@@ -1,0 +1,105 @@
+---
+title: "Filter API Responses in the Bullish Exchange API"
+sidebarTitle: "Filtering"
+description: "How to filter Bullish Trading API responses by field values, including datetime range filters with gte, lte, gt, and lt operators."
+---
+
+Many Bullish Trading API endpoints support optional query parameters that filter the results down to only the records you care about. Filtering is designed around a simple principle: if a field appears in the API response, you can filter on it.
+
+## What Fields Can Be Filtered
+
+Only fields that are returned in an API response may be used as filter parameters. This "what you see is what you query" rule means you never need to guess what filter keys are available — if the response includes a `status` field, you can filter by `status`; if it includes a `symbol` field, you can filter by `symbol`. For the full list of filterable fields on any given endpoint, consult that endpoint's response schema in the API reference.
+
+## Simple Field Filters
+
+Pass a field name and value as a query parameter to filter results to records that match exactly:
+
+```bash
+# Return only OPEN orders
+GET /trading-api/v1/orders?status=OPEN
+
+# Return only orders for the BTCUSD market
+GET /trading-api/v1/orders?symbol=BTCUSD
+
+# Combine multiple field filters
+GET /trading-api/v1/orders?status=OPEN&symbol=BTCUSD
+```
+
+## Datetime and Timestamp Range Filters
+
+For datetime and timestamp fields, simple equality matching is rarely useful. Instead, the API supports four range operators applied using bracket syntax:
+
+| Operator | Meaning |
+|---|---|
+| `gte` | Greater than or equal to |
+| `lte` | Less than or equal to |
+| `gt` | Strictly greater than |
+| `lt` | Strictly less than |
+
+The bracket syntax is `fieldName[operator]=value`. For example, `createdAtTimestamp[gte]=1686447835000` reads as "createdAtTimestamp is greater than or equal to 1686447835000".
+
+<Note>
+  All timestamps in the Bullish Trading API are [EPOCH time](https://en.wikipedia.org/wiki/Unix_time) expressed in milliseconds.
+</Note>
+
+### Timestamp Filter Examples
+
+Filter trades created at or after a specific EPOCH millisecond timestamp:
+
+```bash
+GET /trading-api/v1/trades?createdAtTimestamp[gte]=1686447835000
+```
+
+Filter trades created within a datetime range using ISO 8601 format:
+
+```bash
+GET /trading-api/v1/trades?createdAtDatetime[gte]=2023-04-06T00:00:00.000Z&createdAtDatetime[lte]=2023-06-07T00:00:00.000Z
+```
+
+The second example returns all trades where `createdAtDatetime` is greater than or equal to `2023-04-06T00:00:00.000Z` **and** less than or equal to `2023-06-07T00:00:00.000Z`.
+
+## Combining Filters with Pagination
+
+Filter parameters and pagination parameters can be freely combined in the same request. Pagination parameters are distinguished from filter parameters by their leading underscore prefix (`_pageSize`, `_nextPage`, etc.), so there is no ambiguity:
+
+```bash
+# Fetch the first 25 OPEN orders, with metadata links enabled
+GET /trading-api/v1/orders?status=OPEN&_pageSize=25&_metaData=true
+```
+
+```bash
+# Filter trades by timestamp range, 50 results per page
+GET /trading-api/v1/trades?createdAtTimestamp[gte]=1686447835000&_pageSize=50&_metaData=true
+```
+
+See [Pagination](/concepts/pagination) for a complete reference on pagination parameters.
+
+## Full curl Examples
+
+<CodeGroup>
+
+```bash Simple field filter
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/orders?status=OPEN&symbol=BTCUSD" \
+  -H "Authorization: Bearer <JWT_TOKEN>"
+```
+
+```bash Timestamp range filter
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/trades?createdAtTimestamp[gte]=1686447835000" \
+  -H "Authorization: Bearer <JWT_TOKEN>"
+```
+
+```bash Datetime range filter
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/trades?createdAtDatetime[gte]=2023-04-06T00:00:00.000Z&createdAtDatetime[lte]=2023-06-07T00:00:00.000Z" \
+  -H "Authorization: Bearer <JWT_TOKEN>"
+```
+
+```bash Filter combined with pagination
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/orders?status=OPEN&_pageSize=25&_metaData=true" \
+  -H "Authorization: Bearer <JWT_TOKEN>"
+```
+
+</CodeGroup>
+
+<Tip>
+  When building filter URLs, URL-encode special characters in datetime strings. For example, the `+` in a timezone offset (`+08:00`) must be encoded as `%2B`, and `:` characters in some clients may need encoding as `%3A`. Using ISO 8601 UTC datetimes ending in `Z` avoids this complication entirely.
+</Tip>

@@ -1,0 +1,651 @@
+---
+title: "Order Management API Endpoints — Create, Query, and Cancel Orders"
+sidebarTitle: "Orders"
+description: "REST endpoints for managing orders on Bullish Exchange — create limit/market orders, query open and historical orders, cancel and amend via command entry."
+---
+
+The Orders API provides full order lifecycle management: submitting new orders, querying open and historical orders by ID or filter, and cancelling or amending existing orders via the command entry interface. All write operations (create, cancel, amend) require a valid bearer JWT along with a signed request envelope.
+
+---
+
+## Authentication Headers
+
+All authenticated order endpoints require the following HTTP request headers:
+
+| Header | Description |
+|--------|-------------|
+| `Authorization` | `Bearer <JWT>` obtained from the login endpoint. |
+| `BX-NONCE` | Client-side incremented unsigned 64-bit integer, expressed as a string. |
+| `BX-SIGNATURE` | Signature generated using the [signing format](/authentication/request-signing). |
+| `BX-TIMESTAMP` | Number of milliseconds since EPOCH. |
+| `BX-PUBLIC-KEY` | The public key used to generate the JWT. |
+
+Optionally supply `BX-RATELIMIT-TOKEN` (from your trading account) to access higher rate limit tiers.
+
+---
+
+## GET /trading-api/v2/orders
+
+Retrieves a list of orders placed by a trading account. Only the last 24 hours of data is available for querying. Supports [pagination](/concepts/pagination) and [filtering](/concepts/filtering).
+
+<Note>
+  **Authentication:** Required. **Rate limited:** Yes.
+</Note>
+
+### Query Parameters
+
+<ParamField query="tradingAccountId" type="string" required>
+  ID of the trading account to query orders for.
+</ParamField>
+
+<ParamField query="symbol" type="string" required={false}>
+  Filter by market symbol, e.g. `BTCUSD`.
+</ParamField>
+
+<ParamField query="clientOrderId" type="string" required={false}>
+  Filter by unique numeric client-side order identifier (expressed as a string).
+</ParamField>
+
+<ParamField query="side" type="string" required={false}>
+  Filter by order side: `BUY` or `SELL`.
+</ParamField>
+
+<ParamField query="status" type="string" required={false}>
+  Filter by order status: `OPEN`, `CLOSED`, `CANCELLED`, `REJECTED`.
+</ParamField>
+
+<ParamField query="_pageSize" type="integer" required={false}>
+  Page size. One of: `5`, `25`, `50`, `100`. Defaults to `25`.
+</ParamField>
+
+### Response Fields (array of Order objects)
+
+<ResponseField name="orderId" type="string">
+  Unique exchange-assigned order ID.
+</ResponseField>
+
+<ResponseField name="clientOrderId" type="string">
+  Unique client-side numeric identifier provided at order creation.
+</ResponseField>
+
+<ResponseField name="symbol" type="string">
+  Market symbol. E.g. `BTCUSD`.
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Order type: `LMT`, `MKT`, `STOP_LIMIT`, `POST_ONLY`, `LIMIT`, `MARKET`.
+</ResponseField>
+
+<ResponseField name="side" type="string">
+  Order side: `BUY` or `SELL`.
+</ResponseField>
+
+<ResponseField name="price" type="string">
+  Limit price. E.g. `"50000.0000"`.
+</ResponseField>
+
+<ResponseField name="stopPrice" type="string">
+  Stop trigger price (for stop-limit orders).
+</ResponseField>
+
+<ResponseField name="averageFillPrice" type="string">
+  Average fill price if partially or fully filled.
+</ResponseField>
+
+<ResponseField name="quantity" type="string">
+  Order quantity. E.g. `"1.00000000"`.
+</ResponseField>
+
+<ResponseField name="quantityFilled" type="string">
+  Quantity that has been filled so far.
+</ResponseField>
+
+<ResponseField name="quoteAmount" type="string">
+  Quote quantity deducted from the asset account.
+</ResponseField>
+
+<ResponseField name="baseFee" type="string">
+  Base asset fee charged upon trade execution. E.g. `"0.00100000"`.
+</ResponseField>
+
+<ResponseField name="quoteFee" type="string">
+  Quote asset fee charged upon trade execution. E.g. `"0.0010"`.
+</ResponseField>
+
+<ResponseField name="timeInForce" type="string">
+  Time-in-force policy: `GTC` (Good Till Cancel), `FOK` (Fill Or Kill), `IOC` (Immediate Or Cancel).
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Order status: `OPEN`, `CLOSED`, `CANCELLED`, `REJECTED`.
+</ResponseField>
+
+<ResponseField name="statusReason" type="string">
+  Human-readable description of the current status. E.g. `"User cancelled"`.
+</ResponseField>
+
+<ResponseField name="statusReasonCode" type="string">
+  Numeric status reason code. See [Error & Rejection Codes](https://github.com/bullish-exchange/api-docs/wiki/Error-&-Rejection-Codes).
+</ResponseField>
+
+<ResponseField name="allowBorrow" type="boolean">
+  Indicates if the order was allowed to borrow (does not confirm borrowing occurred).
+</ResponseField>
+
+<ResponseField name="isLiquidation" type="boolean">
+  Whether this order was executed as a liquidation order.
+</ResponseField>
+
+<ResponseField name="createdAtDatetime" type="string">
+  ISO 8601 datetime when the order was acknowledged by the exchange.
+</ResponseField>
+
+<ResponseField name="createdAtTimestamp" type="string">
+  Millisecond EPOCH timestamp when the order was acknowledged.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v2/orders?tradingAccountId=111000000000001&symbol=BTCUSD&status=OPEN" \
+  -H "Authorization: Bearer <JWT>"
+```
+
+### Example Response
+
+```json
+{
+  "data": [
+    {
+      "orderId": "390755652232282113",
+      "clientOrderId": "12345678",
+      "symbol": "BTCUSD",
+      "type": "LMT",
+      "side": "BUY",
+      "price": "50000.0000",
+      "stopPrice": null,
+      "averageFillPrice": null,
+      "quantity": "1.00000000",
+      "quantityFilled": "0.00000000",
+      "quoteAmount": "0.0000",
+      "baseFee": "0.00000000",
+      "quoteFee": "0.0003",
+      "timeInForce": "GTC",
+      "status": "OPEN",
+      "statusReason": "Open",
+      "statusReasonCode": "6001",
+      "allowBorrow": false,
+      "isLiquidation": false,
+      "createdAtDatetime": "2024-10-04T08:00:00.000Z",
+      "createdAtTimestamp": "1728028800000"
+    }
+  ],
+  "links": {
+    "next": "/trading-api/v2/orders?tradingAccountId=111000000000001&_nextPage=Mjk3NzM1MzQ5NDI0NjIwMDMy",
+    "previous": null
+  }
+}
+```
+
+---
+
+## POST /trading-api/v2/orders
+
+Creates a new order. A `200` response confirms the command was acknowledged by the exchange — use [GET /trading-api/v2/orders/{orderId}](#get-trading-apiv2ordersorderid) to confirm the final order status.
+
+<Note>
+  **Authentication:** Required. **Rate limited:** Yes. Provide `BX-RATELIMIT-TOKEN` header for higher tiers.
+</Note>
+
+### Request Headers
+
+<ParamField header="Authorization" type="string" required>
+  `Bearer <JWT>`
+</ParamField>
+
+<ParamField header="BX-SIGNATURE" type="string" required>
+  Request signature.
+</ParamField>
+
+<ParamField header="BX-TIMESTAMP" type="string" required>
+  Milliseconds since EPOCH.
+</ParamField>
+
+<ParamField header="BX-NONCE" type="string" required>
+  Client-side incremented unsigned 64-bit integer as a string.
+</ParamField>
+
+<ParamField header="BX-NONCE-WINDOW-ENABLED" type="string" required={false}>
+  `"true"` or `"false"`. Enables out-of-order processing of order requests. Defaults to `"false"`.
+</ParamField>
+
+### Request Body Fields
+
+<ParamField body="commandType" type="string" required>
+  Must be `"V3CreateOrder"`.
+</ParamField>
+
+<ParamField body="tradingAccountId" type="string" required>
+  ID of the trading account placing the order.
+</ParamField>
+
+<ParamField body="symbol" type="string" required>
+  Market symbol, e.g. `"BTCUSD"`.
+</ParamField>
+
+<ParamField body="type" type="string" required>
+  Order type: `"LIMIT"`, `"MARKET"`, `"STOP_LIMIT"`, `"POST_ONLY"`.
+</ParamField>
+
+<ParamField body="side" type="string" required>
+  Order side: `"BUY"` or `"SELL"`.
+</ParamField>
+
+<ParamField body="quantity" type="string" required>
+  Order quantity. E.g. `"1.00000000"`. Strict precision not required.
+</ParamField>
+
+<ParamField body="timeInForce" type="string" required>
+  Time-in-force: `"GTC"`, `"FOK"`, or `"IOC"`.
+</ParamField>
+
+<ParamField body="price" type="string" required={false}>
+  Limit price. Required for `LIMIT`, `STOP_LIMIT`, and `POST_ONLY` orders. E.g. `"50000.0000"`.
+</ParamField>
+
+<ParamField body="stopPrice" type="string" required={false}>
+  Stop trigger price. Required for `STOP_LIMIT` orders.
+</ParamField>
+
+<ParamField body="clientOrderId" type="string" required={false}>
+  Client-side unique numeric identifier (expressed as a string). Formerly called `handle`.
+</ParamField>
+
+<ParamField body="allowBorrow" type="boolean" required={false}>
+  Allow the order to borrow assets. Defaults to `false`.
+</ParamField>
+
+<ParamField body="isMMP" type="boolean" required={false}>
+  Subject the order to Market Maker Protection. Only applicable to option markets.
+</ParamField>
+
+### Response Fields
+
+<ResponseField name="message" type="string">
+  Acknowledgement message, e.g. `"Command acknowledged - CreateOrder"`.
+</ResponseField>
+
+<ResponseField name="requestId" type="string">
+  Unique request ID assigned by the exchange.
+</ResponseField>
+
+<ResponseField name="orderId" type="string">
+  Unique exchange-assigned order ID to use for subsequent status queries.
+</ResponseField>
+
+<ResponseField name="clientOrderId" type="string">
+  Client-side order ID echoed from the request.
+</ResponseField>
+
+### Example — Create a Limit Buy Order
+
+```bash
+curl -X POST "https://api.exchange.bullish.com/trading-api/v2/orders" \
+  -H "Authorization: Bearer <JWT>" \
+  -H "BX-SIGNATURE: <SIGNATURE>" \
+  -H "BX-TIMESTAMP: 1728028800000" \
+  -H "BX-NONCE: 1728028800000001" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "commandType": "V3CreateOrder",
+    "clientOrderId": "12345678",
+    "symbol": "BTCUSD",
+    "type": "LIMIT",
+    "side": "BUY",
+    "price": "50000.0000",
+    "quantity": "1.00000000",
+    "timeInForce": "GTC",
+    "allowBorrow": false,
+    "tradingAccountId": "111000000000001"
+  }'
+```
+
+### Example Request Body — Spot Limit Order
+
+```json
+{
+  "commandType": "V3CreateOrder",
+  "clientOrderId": "12345678",
+  "symbol": "BTCUSD",
+  "type": "LIMIT",
+  "side": "BUY",
+  "price": "50000.0000",
+  "quantity": "1.00000000",
+  "timeInForce": "GTC",
+  "allowBorrow": false,
+  "tradingAccountId": "111000000000001"
+}
+```
+
+### Example Request Body — Market Order
+
+```json
+{
+  "commandType": "V3CreateOrder",
+  "clientOrderId": "12345679",
+  "symbol": "BTCUSD",
+  "type": "MARKET",
+  "side": "BUY",
+  "quantity": "0.50000000",
+  "timeInForce": "IOC",
+  "tradingAccountId": "111000000000001"
+}
+```
+
+### Example Request Body — Stop-Limit Order
+
+```json
+{
+  "commandType": "V3CreateOrder",
+  "symbol": "BTCUSD",
+  "type": "STOP_LIMIT",
+  "side": "BUY",
+  "price": "31000.1",
+  "stopPrice": "31000.8",
+  "quantity": "1.1",
+  "timeInForce": "GTC",
+  "tradingAccountId": "111000000000001"
+}
+```
+
+### Example Response
+
+```json
+{
+  "message": "Command acknowledged - CreateOrder",
+  "requestId": "633910976353665024",
+  "orderId": "633910775316480001",
+  "clientOrderId": "12345678"
+}
+```
+
+---
+
+## GET /trading-api/v2/orders/{orderId}
+
+Retrieves a specific order by its exchange-assigned order ID.
+
+<Note>
+  **Authentication:** Required. **Rate limited:** Yes.
+</Note>
+
+### Path Parameters
+
+<ParamField path="orderId" type="number" required>
+  Exchange-assigned order ID.
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="tradingAccountId" type="string" required>
+  ID of the trading account that owns the order.
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v2/orders/633910775316480001?tradingAccountId=111000000000001" \
+  -H "Authorization: Bearer <JWT>"
+```
+
+---
+
+## GET /trading-api/v2/history/orders
+
+Retrieves paginated historical order records. Only the last 90 days of data are available. Supports [pagination](/concepts/pagination) and [filtering](/concepts/filtering) including datetime ranges.
+
+<Note>
+  **Authentication:** Required. **Rate limited:** Yes.
+</Note>
+
+### Query Parameters
+
+<ParamField query="tradingAccountId" type="string" required>
+  ID of the trading account.
+</ParamField>
+
+<ParamField query="symbol" type="string" required={false}>
+  Filter by market symbol.
+</ParamField>
+
+<ParamField query="orderId" type="string" required={false}>
+  Filter by specific order ID.
+</ParamField>
+
+<ParamField query="clientOrderId" type="string" required={false}>
+  Filter by client-side order identifier.
+</ParamField>
+
+<ParamField query="side" type="string" required={false}>
+  Filter by order side: `BUY` or `SELL`.
+</ParamField>
+
+<ParamField query="status" type="string" required={false}>
+  Filter by order status: `OPEN`, `CLOSED`, `CANCELLED`, `REJECTED`.
+</ParamField>
+
+<ParamField query="createdAtDatetime[gte]" type="string" required={false}>
+  Start of datetime range (ISO 8601 with millisecond).
+</ParamField>
+
+<ParamField query="createdAtDatetime[lte]" type="string" required={false}>
+  End of datetime range (ISO 8601 with millisecond).
+</ParamField>
+
+<ParamField query="_pageSize" type="integer" required={false}>
+  Page size. One of: `5`, `25`, `50`, `100`. Defaults to `25`.
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v2/history/orders?tradingAccountId=111000000000001&symbol=BTCUSD&status=CANCELLED&createdAtDatetime%5Bgte%5D=2024-09-01T00%3A00%3A00.000Z" \
+  -H "Authorization: Bearer <JWT>"
+```
+
+---
+
+## POST /trading-api/v2/command
+
+Submits a command to the trading engine. Supports order cancellation, mass cancellation, delayed cancellation, and order amendment. A `200` response confirms command acknowledgement — it does not guarantee execution.
+
+<Note>
+  **Authentication:** Required. **Rate limited:** Yes. Provide `BX-RATELIMIT-TOKEN` for higher tiers.
+</Note>
+
+Supported `commandType` values:
+- `V3CancelOrder` — Cancel a specific order
+- `V1CancelAllOrders` — Cancel all open orders across all markets
+- `V1CancelAllOrdersByMarket` — Cancel all open orders in a specific market
+- `V1DelayedCancelAllOrders` — Schedule a delayed cancel-all (kill switch)
+- `V1UnsetDelayedCancelAllOrders` — Unset a pending delayed cancel-all
+- `V1AmendOrder` — Amend the price, quantity, or type of an open order
+- `V3TerminateAMMInstruction` — Terminate an active AMM instruction
+- `V2TransferAsset` — Transfer assets between trading accounts
+
+### Request Headers
+
+<ParamField header="Authorization" type="string" required>
+  `Bearer <JWT>`
+</ParamField>
+
+<ParamField header="BX-SIGNATURE" type="string" required>
+  Request signature.
+</ParamField>
+
+<ParamField header="BX-TIMESTAMP" type="string" required>
+  Milliseconds since EPOCH.
+</ParamField>
+
+<ParamField header="BX-NONCE" type="string" required>
+  Client-side incremented unsigned 64-bit integer as a string.
+</ParamField>
+
+<ParamField header="BX-NONCE-WINDOW-ENABLED" type="string" required={false}>
+  `"true"` or `"false"`. Enables out-of-order request processing.
+</ParamField>
+
+### Cancel a Specific Order
+
+```json
+{
+  "commandType": "V3CancelOrder",
+  "orderId": "633910775316480001",
+  "symbol": "BTCUSD",
+  "tradingAccountId": "111000000000001"
+}
+```
+
+### Amend an Open Order
+
+Amendments can change `price`, `quantity`, and `type` (e.g. between taker-only and maker-only). Only applicable to open orders where `quantityFilled = 0` and `status = OPEN`.
+
+```json
+{
+  "commandType": "V1AmendOrder",
+  "orderId": "633910775316480001",
+  "symbol": "BTCUSD",
+  "price": "49000.0000",
+  "quantity": "2.00000000",
+  "clientOrderId": "633914459442118656",
+  "tradingAccountId": "111000000000001"
+}
+```
+
+### Cancel All Orders in a Market
+
+```json
+{
+  "commandType": "V1CancelAllOrdersByMarket",
+  "symbol": "BTCUSD",
+  "tradingAccountId": "111000000000001"
+}
+```
+
+### Cancel Order Response
+
+```json
+{
+  "message": "Command acknowledged - CancelOrder",
+  "requestId": "633910976353665024",
+  "orderId": "633910775316480001"
+}
+```
+
+### Amend Order Response
+
+```json
+{
+  "message": "Command acknowledged - AmendOrder",
+  "requestId": "633910976353665024",
+  "orderId": "633910775316480001",
+  "clientOrderId": "1234567-1"
+}
+```
+
+### Example Curl — Cancel Order
+
+```bash
+curl -X POST "https://api.exchange.bullish.com/trading-api/v2/command" \
+  -H "Authorization: Bearer <JWT>" \
+  -H "BX-SIGNATURE: <SIGNATURE>" \
+  -H "BX-TIMESTAMP: 1728028800000" \
+  -H "BX-NONCE: 1728028800000002" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "commandType": "V3CancelOrder",
+    "orderId": "633910775316480001",
+    "symbol": "BTCUSD",
+    "tradingAccountId": "111000000000001"
+  }'
+```
+
+---
+
+## POST /trading-api/v2/mmp-configuration
+
+Sets up or resets Market Maker Protection (MMP) configuration for a trading account. MMP is only applicable to options orders created with the `isMMP` flag set to `true`. Contact your relationship manager to enable MMP for your accounts.
+
+<Note>
+  **Authentication:** Required.
+</Note>
+
+### Request Headers
+
+<ParamField header="Authorization" type="string" required>
+  `Bearer <JWT>`
+</ParamField>
+
+<ParamField header="BX-SIGNATURE" type="string" required>
+  Request signature.
+</ParamField>
+
+<ParamField header="BX-TIMESTAMP" type="string" required>
+  Milliseconds since EPOCH.
+</ParamField>
+
+<ParamField header="BX-NONCE" type="string" required>
+  Client-side incremented unsigned 64-bit integer as a string.
+</ParamField>
+
+### Supported Command Types
+
+- `setMMPCommandV1` — Configure MMP parameters for an underlying asset symbol.
+- `resetMMPCommandV1` — Reset MMP configuration for an underlying asset symbol.
+
+### Example Request
+
+```bash
+curl -X POST "https://api.exchange.bullish.com/trading-api/v2/mmp-configuration" \
+  -H "Authorization: Bearer <JWT>" \
+  -H "BX-SIGNATURE: <SIGNATURE>" \
+  -H "BX-TIMESTAMP: 1728028800000" \
+  -H "BX-NONCE: 1728028800000003" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "commandType": "setMMPCommandV1",
+    "tradingAccountId": "111000000000001",
+    "symbol": "BTC",
+    "windowTimeInSeconds": 10,
+    "frozenTimeInSeconds": 30,
+    "quantityLimit": "100",
+    "deltaLimit": "50"
+  }'
+```
+
+---
+
+## GET /trading-api/v2/mmp-configuration
+
+Returns the MMP configuration for a trading account, optionally filtered by underlying asset symbol.
+
+<Note>
+  **Authentication:** Required.
+</Note>
+
+### Query Parameters
+
+<ParamField query="tradingAccountId" type="string" required>
+  ID of the trading account.
+</ParamField>
+
+<ParamField query="symbol" type="string" required={false}>
+  Underlying asset symbol to filter the configuration by. E.g. `BTC`.
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v2/mmp-configuration?tradingAccountId=111000000000001&symbol=BTC" \
+  -H "Authorization: Bearer <JWT>"
+```

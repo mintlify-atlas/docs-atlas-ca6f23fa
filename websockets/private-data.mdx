@@ -1,0 +1,366 @@
+---
+title: "Bullish Exchange Private Data WebSocket — Authenticated Stream"
+sidebarTitle: "Private Data"
+description: "Subscribe to authenticated private WebSocket events on Bullish Exchange — order updates, trade fills, account balance changes, and derivatives positions."
+---
+
+The Private Data WebSocket provides real-time updates for your account's orders, trade fills, asset balances, derivatives positions, AMM instructions, and more. All data on this stream is delivered in real time and requires an authenticated connection using a JWT token.
+
+<Note>
+  Authenticated WebSocket connections are limited to **10 open connections per API key**. New connection requests are rejected once this limit is reached.
+</Note>
+
+## Authentication
+
+Connection requests use [JWT\_COOKIE based authentication](https://github.com/bullish-exchange/api-examples/blob/master/websocket/private_data_web_socket.py). To generate a JWT token, follow the [Generate A JWT Token](/authentication/jwt-tokens) flow, then pass the token as a bearer token when establishing the WebSocket connection.
+
+## Establishing a Connection
+
+There are two modes of connection depending on whether you want data from a single trading account or multiple trading accounts.
+
+<Steps>
+  <Step title="Single Trading Account">
+    Connect to the endpoint with a `tradingAccountId` query parameter:
+
+    ```
+    /trading-api/v1/private-data?tradingAccountId=<TRADING_ACCOUNT_ID>
+    ```
+
+    Then subscribe to the desired topic:
+
+    ```json
+    {
+      "jsonrpc": "2.0",
+      "type": "command",
+      "method": "subscribe",
+      "params": {
+        "topic": "orders"
+      },
+      "id": "1611082473000"
+    }
+    ```
+
+    You can also subscribe to multiple topics in a single message by combining them with `+`. For example, to subscribe to both `assetAccounts` and `derivativesPositionsV2`:
+
+    ```json
+    {
+      "jsonrpc": "2.0",
+      "type": "command",
+      "method": "subscribe",
+      "params": {
+        "topic": "assetAccounts+derivativesPositionsV2"
+      },
+      "id": "1611082473000"
+    }
+    ```
+  </Step>
+  <Step title="Multiple Trading Accounts">
+    Connect to the base endpoint without a `tradingAccountId` parameter:
+
+    ```
+    /trading-api/v1/private-data
+    ```
+
+    Then send a separate subscription message for each trading account, including the `tradingAccountId` in the subscription params:
+
+    ```json
+    {
+      "jsonrpc": "2.0",
+      "type": "command",
+      "method": "subscribe",
+      "params": {
+        "topic": "orders",
+        "tradingAccountId": "<TRADING_ACCOUNT_ID>"
+      },
+      "id": "1611082473000"
+    }
+    ```
+  </Step>
+</Steps>
+
+## Available Topics
+
+| Topic | Description | Data Type | Subscription Type |
+|:------|:------------|:----------|:------------------|
+| `orders` | Snapshot and updates on your orders. Snapshot contains all open orders and the 20 most recent closed orders. | `V1TAOrder` | By `<TOPIC>` |
+| `trades` | Snapshot and updates on your trades. Snapshot contains the 20 most recent trades. | `V1TATrade` | By `<TOPIC>` |
+| `assetAccounts` | Snapshot and updates on assets in your account. | `V1TAAssetAccount` | By `<TOPIC>` |
+| `tradingAccounts` | Snapshot and updates on your trading account summary. | `V1TATradingAccount` | By `<TOPIC>` |
+| `heartbeat` | Periodic heartbeat for health monitoring. | `V1TAHeartbeat` | By `<TOPIC>` |
+| `derivativesPositionsV2` | Derivative position information on your trading account. | `V1TADerivativesPosition` | By `<TOPIC>` |
+| `ammInstructions` | AMM instruction updates on your trading account. Updates only — no snapshot. | `V1TAAmmInstruction` | By `<TOPIC>` |
+| `mmpTrigger` | Snapshot and updates on market maker protection trigger events. | `V1TAMMPTrigger` | By `<TOPIC>` |
+| `mmpRequest` | Snapshot and updates on market maker protection configurations. | `V1TAMMPConfigRequest` | By `<TOPIC>` |
+
+<Note>
+  The `spotAccounts` topic is deprecated (replaced by `assetAccounts`) and the `derivativesPositions` topic is deprecated (replaced by `derivativesPositionsV2`).
+</Note>
+
+## Heartbeat
+
+A heartbeat message is sent approximately every **30 seconds** on the `heartbeat` topic. It serves to validate end-to-end communication between the exchange and your client.
+
+<Warning>
+  If you stop receiving heartbeats, first check the [official status page](https://bullish.statuspage.io/) for any exchange announcements. If no announcements have been made, **disconnect and reconnect immediately** — the issue may be isolated to a specific gateway and reconnecting will route you to a healthy one.
+</Warning>
+
+Subscribe to the heartbeat topic:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "type": "command",
+  "method": "subscribe",
+  "params": {
+    "topic": "heartbeat"
+  },
+  "id": "1611082473000"
+}
+```
+
+Heartbeat response format:
+
+```json
+{
+  "type": "update",
+  "dataType": "V1TAHeartbeat",
+  "data": [
+    {
+      "sequenceNumber": "3",
+      "createdAtTimestamp": "1611082473000"
+    }
+  ]
+}
+```
+
+## Topic Response Details
+
+<Tabs>
+  <Tab title="orders">
+    ### Orders Response
+
+    Provides a snapshot and real-time updates of your orders. The snapshot includes all open orders and the 20 most recent closed orders.
+
+    | Field | Type | Description |
+    |:------|:-----|:------------|
+    | `clientOrderId` | String | Unique numeric identifier generated on the client side |
+    | `orderId` | String | Unique order ID |
+    | `symbol` | String | Market symbol |
+    | `price` | String | Order price |
+    | `averageFillPrice` | String | Average fill price |
+    | `stopPrice` | String | Stop price |
+    | `allowBorrow` | Boolean | Indicates if the order was allowed to borrow |
+    | `quantity` | String | Order quantity |
+    | `quoteAmount` | String | Quote quantity deducted from asset account |
+    | `quantityFilled` | String | Quantity filled |
+    | `baseFee` | String | Base fee rate charged upon trade execution |
+    | `quoteFee` | String | Quote fee rate charged upon trade execution |
+    | `borrowedBaseQuantity` | String | Base quantity borrowed |
+    | `borrowedQuoteQuantity` | String | Quote quantity borrowed |
+    | `isLiquidation` | Boolean | Indicates if the order was executed as a liquidation order |
+    | `side` | String | Order side (`BUY` or `SELL`) |
+    | `type` | String | Order type (e.g. `LMT`) |
+    | `timeInForce` | String | Time in force (e.g. `GTC`) |
+    | `status` | String | Order status |
+    | `statusReason` | String | Describes why the order is in its current state |
+    | `statusReasonCode` | Integer | Status reason code |
+    | `createdAtDatetime` | String | ISO 8601 time the order was acknowledged by the exchange |
+    | `createdAtTimestamp` | String | Epoch millisecond time the order was acknowledged |
+    | `publishedAtTimestamp` | String | Time the update was broadcast to connected clients |
+
+    ```json
+    {
+      "tradingAccountId": "1111",
+      "type": "snapshot",
+      "dataType": "V1TAOrder",
+      "data": [
+        {
+          "orderId": "392883006043848705",
+          "symbol": "BTCUSD",
+          "price": "66858.2000",
+          "averageFillPrice": "66858.2000",
+          "stopPrice": null,
+          "quantity": "2.00000000",
+          "quantityFilled": "2.00000000",
+          "quoteAmount": "23000.0000",
+          "baseFee": "0.00000000",
+          "quoteFee": "0.0005",
+          "side": "BUY",
+          "allowBorrow": false,
+          "borrowedBaseQuantity": "0.00000000",
+          "borrowedQuoteQuantity": "0.0010",
+          "isLiquidation": false,
+          "type": "LMT",
+          "timeInForce": "GTC",
+          "status": "CLOSED",
+          "statusReason": "Executed",
+          "statusReasonCode": 6002,
+          "createdAtDatetime": "2021-12-30T07:36:35.918Z",
+          "createdAtTimestamp": "1640849795918",
+          "publishedAtTimestamp": "1640849795920"
+        }
+      ]
+    }
+    ```
+  </Tab>
+
+  <Tab title="trades">
+    ### Trades Response
+
+    Provides a snapshot and real-time updates of your trade fills. The snapshot includes the 20 most recent trades.
+
+    | Field | Type | Description |
+    |:------|:-----|:------------|
+    | `tradeId` | String | Unique trade ID |
+    | `orderId` | String | Unique order ID |
+    | `symbol` | String | Market symbol |
+    | `price` | String | Trade price |
+    | `quantity` | String | Trade quantity |
+    | `quoteAmount` | String | Quote quantity deducted from asset account |
+    | `baseFee` | String | Base fee |
+    | `quoteFee` | String | Quote fee |
+    | `side` | String | Order side |
+    | `tradeRebateAmount` | String | Amount of rebate credited as part of the trade |
+    | `tradeRebateAssetSymbol` | String | Asset symbol in which the rebate is paid |
+    | `isTaker` | Boolean | Whether this is the taker's trade |
+    | `otcMatchId` | String | Unique OTC match ID |
+    | `otcTradeId` | String | Unique Bullish OTC trade ID |
+    | `clientOtcTradeId` | String | Unique client OTC trade ID |
+    | `createdAtDatetime` | String | ISO 8601 time the trade was executed |
+    | `createdAtTimestamp` | String | Epoch millisecond time the trade was executed |
+    | `publishedAtTimestamp` | String | Time the update was broadcast to connected clients |
+
+    ```json
+    {
+      "tradingAccountId": "1111",
+      "type": "snapshot",
+      "dataType": "V1TATrade",
+      "data": [
+        {
+          "tradeId": "100014000000000118",
+          "orderId": "392883006043848705",
+          "symbol": "BTCUSD",
+          "price": "66858.2000",
+          "quantity": "2.00000000",
+          "quoteAmount": "23000.0000",
+          "baseFee": "0.00000000",
+          "quoteFee": "66.8582",
+          "side": "BUY",
+          "isTaker": false,
+          "tradeRebateAmount": "3.0000",
+          "tradeRebateAssetSymbol": "USDC",
+          "createdAtDatetime": "2021-12-30T07:36:35.918Z",
+          "createdAtTimestamp": "1640849795918",
+          "publishedAtTimestamp": "1640849795920"
+        }
+      ]
+    }
+    ```
+  </Tab>
+
+  <Tab title="assetAccounts">
+    ### Asset Accounts Response
+
+    Provides a granular view of the assets in your trading account — available, borrowed, locked, and loaned quantities per asset.
+
+    | Field | Type | Description |
+    |:------|:-----|:------------|
+    | `tradingAccountId` | String | ID of the trading account |
+    | `assetId` | String | Asset ID |
+    | `assetSymbol` | String | Asset symbol |
+    | `availableQuantity` | String | Assets available to use on the account |
+    | `borrowedQuantity` | String | Assets borrowed on the account |
+    | `lockedQuantity` | String | Assets locked in orders, loans, and AMM instructions |
+    | `loanedQuantity` | String | Assets being loaned from the account |
+    | `updatedAtDatetime` | String | ISO 8601 time the asset account was updated |
+    | `updatedAtTimestamp` | String | Epoch millisecond time the asset account was updated |
+    | `publishedAtTimestamp` | String | Time the update was broadcast to connected clients |
+
+    ```json
+    {
+      "tradingAccountId": "1111",
+      "type": "snapshot",
+      "dataType": "V1TAAssetAccount",
+      "data": [
+        {
+          "tradingAccountId": "1111",
+          "assetId": "1",
+          "assetSymbol": "BTC",
+          "availableQuantity": "4.00000000",
+          "borrowedQuantity": "20.00000000",
+          "lockedQuantity": "0.00000000",
+          "loanedQuantity": "10.00000000",
+          "updatedAtDatetime": "2021-12-30T07:36:35.918Z",
+          "updatedAtTimestamp": "1640849795918",
+          "publishedAtTimestamp": "1640849795920"
+        }
+      ]
+    }
+    ```
+  </Tab>
+
+  <Tab title="derivativesPositionsV2">
+    ### Derivatives Positions V2 Response
+
+    Provides detailed derivatives position information per market on your trading account. This is the current version of the derivatives positions topic — `derivativesPositions` (V1) is deprecated.
+
+    | Field | Type | Description |
+    |:------|:-----|:------------|
+    | `tradingAccountId` | String | ID of the trading account |
+    | `symbol` | String | Market symbol (e.g. `BTC-USDC-PERP`) |
+    | `side` | String | Side of the position |
+    | `quantity` | String | Current size of the position |
+    | `notional` | String | Notional value calculated using mark price |
+    | `entryNotional` | String | Notional value using average entry price |
+    | `mtmPnl` | String | Sum of mark-to-market P&L plus realized P&L since last settlement |
+    | `reportedMtmPnl` | String | P&L from net price change since last time absolute quantity decreased |
+    | `reportedFundingPnl` | String | Sum of all funding payments received since position was opened |
+    | `realizedPnl` | String | Total realized profit since the trading account first opened this position |
+    | `settlementAssetSymbol` | String | Settlement asset symbol |
+    | `eventType` | String | Derivatives position update event type |
+    | `createdAtDatetime` | String | ISO 8601 time the position was created |
+    | `createdAtTimestamp` | String | Epoch millisecond time the position was created |
+    | `updatedAtDatetime` | String | ISO 8601 time the position was last updated |
+    | `updatedAtTimestamp` | String | Epoch millisecond time the position was last updated |
+    | `publishedAtTimestamp` | String | Time the update was broadcast to connected clients |
+
+    ```json
+    {
+      "tradingAccountId": "1111",
+      "type": "snapshot",
+      "dataType": "V1TADerivativesPosition",
+      "data": [
+        {
+          "tradingAccountId": "111234567890",
+          "symbol": "BTC-USDC-PERP",
+          "side": "BUY",
+          "quantity": "1.00000000",
+          "notional": "30000.0000",
+          "entryNotional": "30000.0000",
+          "mtmPnl": "110.0000",
+          "reportedMtmPnl": "120.0000",
+          "reportedFundingPnl": "130.0000",
+          "realizedPnl": "140.0000",
+          "settlementAssetSymbol": "USDC",
+          "eventType": "settlementUpdate",
+          "createdAtDatetime": "2020-01-01T00:00:00.000Z",
+          "createdAtTimestamp": "1577836800000",
+          "updatedAtDatetime": "2020-01-02T00:00:00.000Z",
+          "updatedAtTimestamp": "1577923200000",
+          "publishedAtTimestamp": "1577923300000"
+        }
+      ]
+    }
+    ```
+
+    <Tip>
+      For documentation on what happens during a liquidation event, refer to the [liquidation documentation](https://github.com/bullish-exchange/api-docs/blob/master/src/trading-api/next/websocket-private-data-update-messages-for-borrowers.pdf).
+    </Tip>
+  </Tab>
+</Tabs>
+
+## Python Example
+
+A complete Python example for connecting to the Private Data WebSocket is available in the official API examples repository:
+
+[private\_data\_web\_socket.py](https://github.com/bullish-exchange/api-examples/blob/master/websocket/private_data_web_socket.py)

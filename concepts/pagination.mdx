@@ -1,0 +1,105 @@
+---
+title: "Cursor Pagination in the Bullish Exchange API"
+sidebarTitle: "Pagination"
+description: "How cursor-based pagination works in the Bullish Trading API — query parameters, page sizes, response format, and navigating multi-page results."
+---
+
+The Bullish Trading API uses cursor-based pagination on endpoints that can return large collections of records. When an endpoint supports pagination, responses are wrapped in an envelope that contains both the result data and navigation links for moving through pages of results.
+
+## How Cursor Pagination Works
+
+Cursor pagination works by encoding a position in the result set into an opaque cursor string. Rather than requesting "page 3", you follow the `next` or `previous` link returned by the API, which carries the cursor for that position. This approach is stable even when records are being added or removed between requests.
+
+The API provides four dedicated query parameters to control pagination behaviour. All pagination parameters begin with an underscore (`_`) to visually distinguish them from field-level filter parameters.
+
+## Pagination Query Parameters
+
+| Parameter | Description |
+|---|---|
+| `_pageSize` | Number of records per page. Allowed values: `5`, `25`, `50`, `100`. Defaults to `25`. |
+| `_metaData` | Controls whether navigation links are included in the response. Set to `true` to guarantee links are returned. Defaults to `false`. |
+| `_nextPage` | Cursor pointing to the next page of results. Provided in a paginated response when `_metaData=true`. |
+| `_previousPage` | Cursor pointing to the previous page of results. Provided in a paginated response when `_metaData=true`. |
+
+<Note>
+  Navigation cursors (`_nextPage` and `_previousPage`) are only included in the response when `_metaData=true` is explicitly set on the request. Always pass `_metaData=true` if you intend to paginate through results.
+</Note>
+
+## Paginated Response Format
+
+When pagination is active, the API wraps the result array in a `data` field and includes a `links` object containing URLs for the next and previous pages:
+
+```json
+{
+  "data": [
+    {
+      "averageFillPrice": null,
+      "baseFee": "0.00000000",
+      "createdAtDatetime": "2018-11-18T00:00:00.000Z",
+      "createdAtTimestamp": "1639464207402",
+      "handle": null,
+      "margin": false,
+      "orderId": "390755652232282113",
+      "price": "8520.7000",
+      "quantity": "1.00000000",
+      "quantityFilled": "0.00000000",
+      "quoteAmount": "0.0000",
+      "quoteFee": "0.0003",
+      "side": "BUY",
+      "status": "OPEN",
+      "statusReason": "Open",
+      "statusReasonCode": "6001",
+      "stopPrice": null,
+      "symbol": "BTCUSD",
+      "timeInForce": "GTC",
+      "type": "LMT"
+    }
+  ],
+  "links": {
+    "next": "/trading-api/v1/orders?_pageSize=5&symbol=BTCUSD&_nextPage=Mjk3NzM1MzQ5NDI0NjIwMDMy",
+    "previous": "/trading-api/v1/orders?_pageSize=5&symbol=BTCUSD&_previousPage=Mjk3NzM1Mzg3NzQ3OTc1Njgw"
+  }
+}
+```
+
+The `links.next` and `links.previous` values are ready-to-use relative paths. Append them to the base URL `https://api.exchange.bullish.com` to construct the full request URL for the next or previous page.
+
+## Example: Fetching the First Page
+
+The following request retrieves the first page of open BTCUSD orders with 5 results per page and metadata links enabled:
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/orders?status=OPEN&symbol=BTCUSD&_pageSize=5&_metaData=true" \
+  -H "Authorization: Bearer <JWT_TOKEN>"
+```
+
+## Example: Walking Through Pages
+
+To navigate to the next page, take the `_nextPage` cursor from the `links.next` value of the previous response and pass it as a query parameter:
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/orders?_pageSize=5&symbol=BTCUSD&_nextPage=Mjk3NzM1MzQ5NDI0NjIwMDMy&_metaData=true" \
+  -H "Authorization: Bearer <JWT_TOKEN>"
+```
+
+To go backwards, use the `_previousPage` cursor from the `links.previous` value:
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/orders?_pageSize=5&symbol=BTCUSD&_previousPage=Mjk3NzM1Mzg3NzQ3OTc1Njgw&_metaData=true" \
+  -H "Authorization: Bearer <JWT_TOKEN>"
+```
+
+## Combining Pagination with Filters
+
+Pagination parameters and field filter parameters can be combined in the same request. The underscore prefix on pagination parameters (`_pageSize`, `_metaData`, `_nextPage`, `_previousPage`) ensures they are never confused with filter parameters such as `status` or `symbol`:
+
+```bash
+# Filter by status=OPEN, request 25 results per page with metadata links
+GET /trading-api/v1/orders?status=OPEN&_pageSize=25&_metaData=true
+```
+
+See [Filtering](/concepts/filtering) for more detail on field-level filters.
+
+<Tip>
+  If you reach the last page in a result set, the `links.next` field will be absent from the response. Check for the presence of `links.next` in your pagination loop to detect the end of results.
+</Tip>

@@ -1,0 +1,102 @@
+---
+title: "Generate and Manage Bullish Exchange API Keys"
+sidebarTitle: "API Keys"
+description: "How to create ECDSA and HMAC API keys in the Bullish web interface — key types, security best practices, and metadata decoding."
+---
+
+Before you can make authenticated requests to the Bullish Trading API, you need an API key. Bullish supports two key types — ECDSA and HMAC — which differ in their cryptographic mechanism and the scope of endpoints they can access.
+
+## Generate an API Key
+
+A prerequisite to generating API keys is to have a Bullish account. To generate an API key follow these steps:
+
+<Steps>
+  <Step title="Log in to your Bullish account">
+    Navigate to the Bullish web application and sign in with your credentials.
+  </Step>
+  <Step title="Open Settings">
+    Click on your account initials at the upper right corner and then click **Settings**.
+  </Step>
+  <Step title="Navigate to API Keys">
+    Click **API Keys** and then click **Add API Key**.
+  </Step>
+  <Step title="Select the API Key type">
+    Choose either **ECDSA** or **HMAC** depending on your use case. See the sections below for guidance on which type to use.
+  </Step>
+  <Step title="Enter a key name">
+    Enter a descriptive key name in the **Key Name** field to help you identify the key later.
+  </Step>
+  <Step title="Configure IP whitelist (optional)">
+    Adding an IP whitelist is optional. Should an IP whitelist be added, login requests must originate from within the configured IP whitelist range.
+  </Step>
+  <Step title="Generate the key">
+    Click **Generate API Key**. Store the credentials displayed securely — the private key or HMAC secret will not be shown again.
+  </Step>
+</Steps>
+
+## ECDSA API Keys
+
+An ECDSA API key is a public/private key pair used for ECDSA-based signing of trading and custody API requests.
+
+- The **private key** is used to sign requests. Always store your private keys in a secure medium.
+- From here on, the public key will be referred to as `PUBLIC_KEY` and the private key as `PRIVATE_KEY`.
+- ECDSA API Keys can be used for both **trading** and **custody** endpoints.
+
+### Key and Signature Format Details
+
+| Property | Value |
+|---|---|
+| Curve | ECDSA R1 (prime256v1 / secp256r1 / P-256) |
+| Signature encoding | DER |
+| Hashing algorithm | SHA-256 |
+| Key format | X.509 SubjectPublicKeyInfo, PEM encoded |
+
+### Decoding ECDSA Metadata to Extract Your userId
+
+An ECDSA API key has a `metadata` string associated with it, displayed alongside the key in the Bullish UI. You must base64-decode the `metadata` to extract your `userId`. You will need the `userId` when generating a JWT token.
+
+```shell
+echo eyJwdWJsaWNLZXkiOiJQVUJfUjFfNWNpVW52TW5rVThMOVBCWnZaa1BGcjhqdkRnUHpzcHhWNGlqOThIN1JqM1FSNzJyMkEiLCJhY2NvdW50SWQiOjIyMjAwMDAwMDAwMDAwNCwiY3JlZGVudGlhbElkIjoiMTAifQ== | base64 --decode
+```
+
+The decoded output is a JSON object containing your key details:
+
+```json
+{
+  "publicKey": "PUB_R1_5ciUnvMnkU8L9PBZvZkPFr8jvDgPzspxV4ij98H7Rj3QR72r2A",
+  "userId": "12345",
+  "accountId": "12345",
+  "credentialId": "10"
+}
+```
+
+<Warning>
+  Keep the `userId` value from this decoded metadata — you will need it as the `userId` field in the JWT login request body.
+</Warning>
+
+## HMAC API Keys
+
+A HMAC API Key is a shared secret key used for HMAC-based signing of trading API requests.
+
+- HMAC API Keys can **only** be used for trading on Bullish. The JWT generated using an HMAC API Key is valid for trading endpoints only — it cannot be used for custody endpoints.
+- You do not need to decode a `metadata` string to extract your `userId` when using an HMAC API Key.
+
+<Warning>
+  Always store your HMAC secret in a secure medium. Do not share your HMAC secret in any publicly accessible areas such as code repositories, client-side code, or other vulnerable areas. Ensure the secret is never shipped with your mobile or web apps.
+</Warning>
+
+## Security Best Practices
+
+<Warning>
+  Never share your ECDSA private key or HMAC secret in publicly accessible areas such as:
+  - Source code repositories (public or private)
+  - Client-side JavaScript or mobile app bundles
+  - Unencrypted configuration files
+  - Chat, email, or support tickets
+
+  Anyone who obtains your private key or HMAC secret can sign requests on your behalf.
+</Warning>
+
+<Note>
+  If you suspect your API key has been compromised, revoke it immediately from the **Settings → API Keys** page in the Bullish web UI and generate a new one.
+</Note>

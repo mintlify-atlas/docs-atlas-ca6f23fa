@@ -1,0 +1,563 @@
+---
+title: "Crypto and Fiat Deposit and Withdrawal API Endpoints"
+sidebarTitle: "Deposits & Withdrawals"
+description: "REST endpoints for depositing and withdrawing crypto and fiat on Bullish Exchange — retrieve deposit addresses, set withdrawal instructions, and submit withdrawals."
+---
+
+These endpoints cover the full lifecycle of moving funds into and out of your Bullish Exchange custody account. You can retrieve deposit addresses for crypto and fiat, look up your whitelisted withdrawal destinations, and submit withdrawal requests. All endpoints require authentication via a bearer token, and the withdrawal submission endpoint additionally requires an ECDSA signature in the request header.
+
+<Warning>
+  All custody endpoints — including every endpoint on this page — require a JWT token generated with an **ECDSA API key**. HMAC API keys produce tokens that are only valid for trading endpoints. Requests to `/wallets/*` endpoints made with an HMAC-derived token will be rejected. Make sure you use an ECDSA key when generating your JWT.
+</Warning>
+
+All custody endpoints share a rate limit of **40 requests per IP, per minute** across all `/wallets/*` routes.
+
+<Note>
+  Custody endpoints use a **non-multiplied asset format** for long-decimal assets. Where the Trading API uses `SHIB1M` or `PEPE1M`, custody endpoints use the real-world symbols `SHIB` and `PEPE`. See the [Bullish Help Centre](https://bullishexchange.atlassian.net/wiki/spaces/BHC/pages/20807684/Understanding+Multiplied+Assets+PEPE1M+and+SHIB1M) for full details.
+</Note>
+
+---
+
+<Tabs>
+  <Tab title="Crypto">
+
+## GET /trading-api/v1/wallets/deposit-instructions/crypto/{symbol}
+
+Returns the on-chain deposit address (and optional memo or destination tag) for a given crypto asset. Send funds to the returned address on the correct network to credit your Bullish account.
+
+### Request parameters
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token generated with an ECDSA API key.
+
+  Example: `Bearer <jwt_token>`
+</ParamField>
+
+<ParamField path="symbol" type="string" required>
+  Crypto asset symbol in non-multiplied custody format.
+
+  Example: `BTC`, `ETH`, `USDC`, `SHIB`
+</ParamField>
+
+### Response fields
+
+The response is an array of deposit instruction objects. Multiple entries may be returned when an asset is supported across more than one network.
+
+<ResponseField name="network" type="string">
+  Network on which the deposit address is valid, e.g. `ETH`, `BTC`, `SOL`.
+</ResponseField>
+
+<ResponseField name="symbol" type="string">
+  Asset symbol, e.g. `USDC`, `BTC`, `ETH`.
+</ResponseField>
+
+<ResponseField name="address" type="string">
+  On-chain address to send funds to.
+
+  Example: `0xb0a64d976972d87b0783eeb1ff88306cd1891f02`
+</ResponseField>
+
+<ResponseField name="memo" type="string">
+  Optional memo or destination tag required by certain networks (e.g. XRP, XLM). Include this value when sending funds or the deposit may not be credited.
+
+  Example: `925891241`
+</ResponseField>
+
+### Example request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/wallets/deposit-instructions/crypto/USDC" \
+  -H "Authorization: Bearer <jwt_token>"
+```
+
+### Example response
+
+```json
+[
+  {
+    "network": "ETH",
+    "symbol": "USDC",
+    "address": "0xb0a64d976972d87b0783eeb1ff88306cd1891f02"
+  }
+]
+```
+
+---
+
+## GET /trading-api/v1/wallets/withdrawal-instructions/crypto/{symbol}
+
+Returns the list of whitelisted crypto withdrawal destinations for a given asset. Each entry includes the destination ID, network address, and the withdrawal fee that will be charged.
+
+<Note>
+  All withdrawal addresses must be whitelisted via the Bullish website before any digital asset withdrawal can be processed. If you attempt a withdrawal to a non-whitelisted address, the request will fail.
+</Note>
+
+### Request parameters
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token generated with an ECDSA API key.
+
+  Example: `Bearer <jwt_token>`
+</ParamField>
+
+<ParamField path="symbol" type="string" required>
+  Crypto asset symbol in non-multiplied custody format.
+
+  Example: `BTC`, `ETH`, `USDC`
+</ParamField>
+
+### Response fields
+
+The response is an array of withdrawal instruction objects, one per whitelisted destination.
+
+<ResponseField name="network" type="string">
+  Network for this withdrawal destination, e.g. `ETH`, `BTC`.
+</ResponseField>
+
+<ResponseField name="symbol" type="string">
+  Asset symbol, e.g. `USDC`, `BTC`.
+</ResponseField>
+
+<ResponseField name="address" type="string">
+  Whitelisted on-chain address.
+
+  Example: `0xb0a64d976972d87b0783eeb1ff88306cd1891f02`
+</ResponseField>
+
+<ResponseField name="fee" type="string">
+  Withdrawal fee charged in units of the symbol (not smaller denominations).
+
+  Example: `3.00`
+</ResponseField>
+
+<ResponseField name="memo" type="string">
+  Optional memo or destination tag that will be included in the on-chain transaction.
+
+  Example: `MZAXEMRXA`
+</ResponseField>
+
+<ResponseField name="label" type="string">
+  User-provided descriptive label for this destination address.
+
+  Example: `Our cold wallet`
+</ResponseField>
+
+<ResponseField name="destinationId" type="string">
+  Bullish-issued identifier for this whitelisted destination. Use this value in the `POST /wallets/withdrawal` request body.
+
+  Example: `1560ec0b406c0d909bb9f5f827dd6aa14a1f638884f33a2a3134878102e78038`
+</ResponseField>
+
+### Example request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/wallets/withdrawal-instructions/crypto/BTC" \
+  -H "Authorization: Bearer <jwt_token>"
+```
+
+### Example response
+
+```json
+[
+  {
+    "network": "BTC",
+    "symbol": "BTC",
+    "address": "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+    "fee": "0.00010000",
+    "label": "Our cold wallet",
+    "destinationId": "1560ec0b406c0d909bb9f5f827dd6aa14a1f638884f33a2a3134878102e78038"
+  }
+]
+```
+
+  </Tab>
+  <Tab title="Fiat">
+
+## GET /trading-api/v1/wallets/deposit-instructions/fiat/{symbol}
+
+Returns the bank account details you should use to wire fiat funds into your Bullish account. The response includes Bullish's account number, the beneficiary name, and bank routing details. A client-specific `memo` is included — you must include this reference in your wire transfer so Bullish can identify and allocate the funds to your account.
+
+### Request parameters
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token generated with an ECDSA API key.
+
+  Example: `Bearer <jwt_token>`
+</ParamField>
+
+<ParamField path="symbol" type="string" required>
+  Fiat currency symbol.
+
+  Example: `USD`, `EUR`
+</ParamField>
+
+### Response fields
+
+The response is an array of fiat deposit instruction objects, which may include multiple entries for different networks (e.g. SWIFT, ABA, SEPA).
+
+<ResponseField name="network" type="string">
+  Payment network for this set of instructions. One of `SWIFT`, `ABA`, or `SEPA`.
+
+  Example: `SWIFT`
+</ResponseField>
+
+<ResponseField name="symbol" type="string">
+  Fiat currency for this account.
+
+  Example: `USD`
+</ResponseField>
+
+<ResponseField name="accountNumber" type="string">
+  Bullish bank account number for the given network.
+
+  Example: `5090022533`
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Official Bullish account holder name.
+
+  Example: `Bullish (GI) Limited`
+</ResponseField>
+
+<ResponseField name="physicalAddress" type="string">
+  Bullish entity's physical address for the bank account.
+
+  Example: `26/F, The Centrium, 60 Wyndham Street, Central, Hong Kong`
+</ResponseField>
+
+<ResponseField name="memo" type="string">
+  **Required.** Client-specific reference that must be included in your wire transfer so Bullish can identify and allocate your deposit.
+
+  Example: `8VZPKSGPA`
+</ResponseField>
+
+<ResponseField name="bank" type="object">
+  Bullish's bank details.
+
+  <Expandable title="bank fields">
+    <ResponseField name="name" type="string">
+      Name of the bank.
+
+      Example: `Silvergate Bank`
+    </ResponseField>
+
+    <ResponseField name="physicalAddress" type="string">
+      Physical location of the bank.
+
+      Example: `4250 Executive Square Suite 300 La Jolla, CA 92037`
+    </ResponseField>
+
+    <ResponseField name="routingCode" type="string">
+      Bank routing code.
+
+      Example: `322286803`
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/wallets/deposit-instructions/fiat/USD" \
+  -H "Authorization: Bearer <jwt_token>"
+```
+
+### Example response
+
+```json
+[
+  {
+    "network": "SWIFT",
+    "symbol": "USD",
+    "accountNumber": "5090022533",
+    "name": "Bullish (GI) Limited",
+    "physicalAddress": "26/F, The Centrium, 60 Wyndham Street, Central, Hong Kong",
+    "memo": "8VZPKSGPA",
+    "bank": {
+      "name": "Silvergate Bank",
+      "physicalAddress": "4250 Executive Square Suite 300 La Jolla, CA 92037",
+      "routingCode": "322286803"
+    }
+  }
+]
+```
+
+---
+
+## GET /trading-api/v1/wallets/withdrawal-instructions/fiat/{symbol}
+
+Returns the list of whitelisted fiat withdrawal destinations (bank accounts) for a given currency. Before a destination can be used for a withdrawal it must be whitelisted on the Bullish website.
+
+### Request parameters
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token generated with an ECDSA API key.
+
+  Example: `Bearer <jwt_token>`
+</ParamField>
+
+<ParamField path="symbol" type="string" required>
+  Fiat currency symbol.
+
+  Example: `USD`, `EUR`
+</ParamField>
+
+### Response fields
+
+The response is an array of fiat withdrawal instruction objects.
+
+<ResponseField name="destinationId" type="string">
+  Bullish-issued identifier for this whitelisted bank account. Use this value in the `POST /wallets/withdrawal` request body.
+
+  Example: `1560ec0b406c0d909bb9f5f827dd6aa14a1f638884f33a2a3134878102e78038`
+</ResponseField>
+
+<ResponseField name="accountNumber" type="string">
+  Your bank account number.
+
+  Example: `9873481227`
+</ResponseField>
+
+<ResponseField name="network" type="string">
+  Payment network for this destination. One of `SWIFT`, `ABA`, or `SEPA`.
+
+  Example: `SWIFT`
+</ResponseField>
+
+<ResponseField name="symbol" type="string">
+  Fiat currency symbol.
+
+  Example: `USD`
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Account holder name.
+
+  Example: `Silvergate Bank`
+</ResponseField>
+
+<ResponseField name="physicalAddress" type="string">
+  Physical address associated with the bank account.
+
+  Example: `4250 Executive Square Suite 300 La Jolla, CA 92037`
+</ResponseField>
+
+<ResponseField name="fee" type="string">
+  Withdrawal fee charged in units of the fiat symbol.
+
+  Example: `3.00`
+</ResponseField>
+
+<ResponseField name="memo" type="string">
+  Optional memo included as a reference on the outgoing transaction.
+
+  Example: `MZAXEMRXA`
+</ResponseField>
+
+<ResponseField name="bank" type="object">
+  Destination bank details.
+
+  <Expandable title="bank fields">
+    <ResponseField name="name" type="string">Bank name.</ResponseField>
+    <ResponseField name="physicalAddress" type="string">Physical bank address.</ResponseField>
+    <ResponseField name="routingCode" type="string">Bank routing code.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="intermediaryBank" type="object">
+  Optional intermediary bank details for SWIFT transfers that require a correspondent bank.
+
+  <Expandable title="intermediaryBank fields">
+    <ResponseField name="name" type="string">
+      Intermediary bank name.
+
+      Example: `Middle Bank`
+    </ResponseField>
+
+    <ResponseField name="physicalAddress" type="string">
+      Intermediary bank physical address.
+
+      Example: `523 Exchange Square, Canary Wharf, E14 2WA`
+    </ResponseField>
+
+    <ResponseField name="routingCode" type="string">
+      Intermediary bank routing code.
+
+      Example: `321176234`
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/wallets/withdrawal-instructions/fiat/USD" \
+  -H "Authorization: Bearer <jwt_token>"
+```
+
+### Example response
+
+```json
+[
+  {
+    "destinationId": "1560ec0b406c0d909bb9f5f827dd6aa14a1f638884f33a2a3134878102e78038",
+    "accountNumber": "9873481227",
+    "network": "SWIFT",
+    "symbol": "USD",
+    "name": "My Business Account",
+    "fee": "25.00",
+    "bank": {
+      "name": "Silvergate Bank",
+      "physicalAddress": "4250 Executive Square Suite 300 La Jolla, CA 92037",
+      "routingCode": "322286803"
+    }
+  }
+]
+```
+
+  </Tab>
+</Tabs>
+
+---
+
+## POST /trading-api/v1/wallets/withdrawal
+
+Submits a withdrawal request for either crypto or fiat. The destination must already be whitelisted on the Bullish website. This endpoint requires both a bearer token **and** a `BX-SIGNATURE` header signed with your ECDSA private key.
+
+<Warning>
+  Bullish requires you to whitelist a withdrawal destination address before submitting a withdrawal request. You can view, approve, and manage your list of destination addresses in **Account Settings** on the Bullish website. Withdrawal attempts to non-whitelisted addresses will fail.
+</Warning>
+
+### Constructing the BX-SIGNATURE header
+
+The `BX-SIGNATURE` header is an ECDSA signature over a canonical string built from the request. To construct it:
+
+1. Concatenate the following fields into a single string (no separators):
+   - `timestamp` — current epoch milliseconds, e.g. `1697008474031`
+   - `nonce` — a UUID to protect against replay attacks, e.g. `255241a1-2cde-4954-87b1-13beef547960`
+   - `request method` — e.g. `POST`
+   - `request path` — e.g. `/trading-api/v1/wallets/withdrawal`
+   - `request body JSON string` — with all spaces and newline characters removed
+
+2. Hash the concatenated string using SHA-256 and sign the hexdigest with your `PRIVATE_KEY`.
+
+3. DER-encode the signature and then Base64-encode the DER-encoded result. This Base64 string is your `BX-SIGNATURE`.
+
+For a complete working example see the [Custody Withdrawal Example on GitHub](https://github.com/bullish-exchange/api-examples/blob/master/custody/custody_withdrawal_ecdsa.py).
+
+### Request parameters
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token generated with an ECDSA API key.
+
+  Example: `Bearer <jwt_token>`
+</ParamField>
+
+<ParamField header="BX-SIGNATURE" type="string" required>
+  Base64-encoded DER-encoded ECDSA signature over the canonical request string. See construction steps above.
+</ParamField>
+
+### Request body
+
+<ParamField body="timestamp" type="string" required>
+  Current epoch time in milliseconds as a string.
+
+  Example: `"1697008474031"`
+</ParamField>
+
+<ParamField body="nonce" type="string" required>
+  A UUID withdrawal nonce to protect against replay attacks. It is recommended to reuse the same value as the nonce in the `BX-SIGNATURE` header.
+
+  Example: `"255241a1-2cde-4954-87b1-13beef547960"`
+</ParamField>
+
+<ParamField body="authorizer" type="string" required>
+  JWT authorizer string obtained alongside your JWT token during the login flow.
+</ParamField>
+
+<ParamField body="command" type="object" required>
+  The withdrawal command object.
+
+  <Expandable title="command fields">
+    <ParamField body="commandType" type="string" required>
+      Must be the string `"V1Withdrawal"`.
+    </ParamField>
+
+    <ParamField body="destinationId" type="string" required>
+      Bullish-issued identifier for the whitelisted destination. Obtain this from `GET /wallets/withdrawal-instructions/crypto/{symbol}` or `GET /wallets/withdrawal-instructions/fiat/{symbol}`.
+
+      Example: `"1560ec0b406c0d909bb9f5f827dd6aa14a1f638884f33a2a3134878102e78038"`
+    </ParamField>
+
+    <ParamField body="symbol" type="string" required>
+      Asset symbol in non-multiplied custody format.
+
+      Example: `"BTC"`, `"USDC"`, `"USD"`
+    </ParamField>
+
+    <ParamField body="network" type="string" required>
+      Network on which to perform the withdrawal.
+
+      Example: `"BTC"`, `"ETH"`, `"SWIFT"`
+    </ParamField>
+
+    <ParamField body="quantity" type="string" required>
+      Total amount to withdraw including any fee, in units of the symbol (not in smaller denominations such as Satoshi or Wei). The fee is deducted from this quantity, so the recipient receives `quantity - fee`.
+
+      Supported precisions vary by symbol (e.g. BTC supports 8 decimal places, USD supports 2, XRP supports 6). See the full precision table in the spec for details.
+
+      Example: `"0.50000000"`
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Response fields
+
+<ResponseField name="statusReason" type="string">
+  Human-readable description of the withdrawal status.
+
+  Example: `Withdrawal accepted`
+</ResponseField>
+
+<ResponseField name="statusReasonCode" type="integer">
+  Numeric status reason code. See the [Error & Rejection Codes reference](https://github.com/bullish-exchange/api-docs/wiki/Error-&-Rejection-Codes) for the full list.
+
+  Example: `1001`
+</ResponseField>
+
+<ResponseField name="custodyTransactionId" type="string">
+  Unique identifier for tracking this withdrawal in the transaction history.
+
+  Example: `DB:9e6304a08c9cc2a33e6bc6429a088eae2a6b940c8e312aede3a3780257b9b979`
+</ResponseField>
+
+### Example request
+
+```bash
+curl -X POST "https://api.exchange.bullish.com/trading-api/v1/wallets/withdrawal" \
+  -H "Authorization: Bearer <jwt_token>" \
+  -H "BX-SIGNATURE: <base64_der_ecdsa_signature>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "timestamp": "1697008474031",
+    "nonce": "255241a1-2cde-4954-87b1-13beef547960",
+    "authorizer": "<authorizer_string>",
+    "command": {
+      "commandType": "V1Withdrawal",
+      "destinationId": "1560ec0b406c0d909bb9f5f827dd6aa14a1f638884f33a2a3134878102e78038",
+      "symbol": "BTC",
+      "network": "BTC",
+      "quantity": "0.50000000"
+    }
+  }'
+```
+
+### Example response
+
+```json
+{
+  "statusReason": "Withdrawal accepted",
+  "statusReasonCode": 1001,
+  "custodyTransactionId": "DB:9e6304a08c9cc2a33e6bc6429a088eae2a6b940c8e312aede3a3780257b9b979"
+}
+```

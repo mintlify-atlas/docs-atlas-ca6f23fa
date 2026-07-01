@@ -1,0 +1,150 @@
+{
+  "projectType": "api-service",
+  "projectName": "Bullish Exchange API",
+  "projectDescription": "REST and WebSocket APIs for the Bullish cryptocurrency exchange, covering trading, market data, custody, and aggregator endpoints.",
+  "theme": "luma",
+  "primaryColor": "#ffffff",
+  "lightColor": null,
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "environments"
+            ]
+          },
+          {
+            "group": "Authentication",
+            "pages": [
+              "authentication/overview",
+              "authentication/api-keys",
+              "authentication/jwt-tokens",
+              "authentication/request-signing"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/pagination",
+              "concepts/filtering",
+              "concepts/rate-limits",
+              "concepts/precision-and-formats"
+            ]
+          },
+          {
+            "group": "WebSockets",
+            "pages": [
+              "websockets/overview",
+              "websockets/market-data",
+              "websockets/private-data"
+            ]
+          },
+          {
+            "group": "FIX API",
+            "pages": [
+              "fix-api/overview"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Trading API",
+            "pages": [
+              "api-reference/trading/markets",
+              "api-reference/trading/orders",
+              "api-reference/trading/trades",
+              "api-reference/trading/amm-instructions",
+              "api-reference/trading/accounts",
+              "api-reference/trading/derivatives",
+              "api-reference/trading/otc"
+            ]
+          },
+          {
+            "group": "Custody API",
+            "pages": [
+              "api-reference/custody/wallets",
+              "api-reference/custody/deposits-withdrawals"
+            ]
+          },
+          {
+            "group": "Aggregator API",
+            "pages": [
+              "api-reference/aggregator/overview"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "REST Trading API with authenticated order management (create, cancel, amend orders)",
+    "Public market data endpoints (markets, orderbook, trades, index prices, candles)",
+    "WebSocket streams for real-time market data and private account updates",
+    "ECDSA and HMAC API key authentication with JWT bearer tokens",
+    "Custody endpoints for crypto and fiat deposits/withdrawals",
+    "AMM (Automated Market Making) instruction management",
+    "Derivatives positions, perpetuals, and options support",
+    "OTC (Over-The-Counter) trade execution",
+    "Aggregator API for public tickers, orderbook depth, and recent trades",
+    "FIX protocol support for institutional clients via private connectivity",
+    "Market Maker Protection (MMP) configuration",
+    "Portfolio margin simulator"
+  ],
+  "publicApiSurface": [
+    "GET /trading-api/v1/markets",
+    "GET /trading-api/v1/markets/{symbol}",
+    "GET /trading-api/v1/markets/{symbol}/orderbook/hybrid",
+    "GET /trading-api/v1/markets/{symbol}/trades",
+    "GET /trading-api/v1/markets/{symbol}/tick",
+    "GET /trading-api/v1/markets/{symbol}/candle",
+    "GET /trading-api/v1/assets",
+    "GET /trading-api/v1/assets/{symbol}",
+    "GET /trading-api/v1/index-prices",
+    "GET /trading-api/v1/index-prices/{assetSymbol}",
+    "GET /trading-api/v1/time",
+    "GET /trading-api/v1/nonce",
+    "POST /trading-api/v2/users/login",
+    "GET /trading-api/v1/users/hmac/login",
+    "POST /trading-api/v1/users/logout",
+    "GET /trading-api/v1/accounts/trading-accounts",
+    "GET /trading-api/v1/accounts/trading-accounts/{tradingAccountId}",
+    "GET /trading-api/v1/accounts/asset",
+    "GET /trading-api/v1/accounts/asset/{symbol}",
+    "GET /trading-api/v2/orders",
+    "POST /trading-api/v2/orders",
+    "GET /trading-api/v2/orders/{orderId}",
+    "GET /trading-api/v2/history/orders",
+    "POST /trading-api/v2/command (create/cancel/amend orders)",
+    "GET /trading-api/v1/trades",
+    "GET /trading-api/v1/trades/{tradeId}",
+    "GET /trading-api/v1/history/trades",
+    "GET /trading-api/v2/amm-instructions",
+    "POST /trading-api/v2/amm-instructions",
+    "GET /trading-api/v2/amm-instructions/{instructionId}",
+    "POST /trading-api/v2/mmp-configuration",
+    "GET /trading-api/v1/wallets/transactions",
+    "GET /trading-api/v1/wallets/limits/{symbol}",
+    "GET /trading-api/v1/wallets/deposit-instructions/crypto/{symbol}",
+    "POST /trading-api/v1/wallets/withdrawal-instructions/crypto/{symbol}",
+    "GET /trading-api/v1/wallets/deposit-instructions/fiat/{symbol}",
+    "POST /trading-api/v1/wallets/withdrawal",
+    "GET /trading-api/v1/derivatives-positions",
+    "GET /trading-api/v1/history/derivatives-settlement",
+    "GET /trading-api/v1/option-ladder",
+    "GET /trading-api/v2/otc-trades",
+    "POST /trading-api/v2/otc-trades",
+    "POST /trading-api/v1/simulate-portfolio-margin",
+    "GET /aggregator-api/v1/tickers",
+    "GET /aggregator-api/v1/orderbook/{symbolV2}",
+    "GET /aggregator-api/v1/trades/{symbolV2}"
+  ]
+}

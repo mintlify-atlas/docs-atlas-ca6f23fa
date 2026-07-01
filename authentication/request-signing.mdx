@@ -1,0 +1,165 @@
+---
+title: "Sign Authenticated Requests to the Bullish Exchange API"
+sidebarTitle: "Request Signing"
+description: "How to construct the BX-NONCE and BX-SIGNATURE headers for authenticated Bullish Trading API requests, including nonce management and command signing."
+---
+
+Every authenticated request to the Bullish Trading API requires three additional headers beyond the `Authorization` bearer token: `BX-TIMESTAMP`, `BX-NONCE`, and `BX-SIGNATURE`. Together these headers prove that a specific request body was sent at a specific time by the holder of the API key, and that it has not been replayed or tampered with.
+
+<Note>
+  The `BX-NONCE` used in authenticated API requests (orders, commands, etc.) is a separate concept from the `nonce` field in the JWT login payload. The login nonce is an epoch timestamp in seconds; the `BX-NONCE` is a client-managed monotonically increasing counter. They are completely independent.
+</Note>
+
+## BX-NONCE Header
+
+The `BX-NONCE` value is a unique client-side 64-bit unsigned integer. Each request you send must use an incrementing `BX-NONCE` value.
+
+### Characteristics
+
+- Each request must carry an incrementing `BX-NONCE` value.
+- The exchange only accepts nonces within a permitted range to prevent exhaustion of the 64-bit unsigned integer space.
+- The valid nonce range is updated **daily**.
+- The `lowerBound` of the range is the start-of-day UNIX timestamp in **microseconds**.
+- The `upperBound` of the range is the end-of-day UNIX timestamp in **microseconds**.
+
+### Fetching the Nonce Range
+
+Retrieve the current valid nonce bounds from:
+
+```
+GET /trading-api/v1/nonce
+```
+
+Use the returned `lowerBound` as the starting point for your nonce counter. Increment it with each subsequent request.
+
+<Note>
+  Numeric (i64) identifiers such as `nonce` and `handle` must **not** have leading zeros. For example, `009990822212000000` is invalid; `9990822212000000` is valid.
+</Note>
+
+## BX-TIMESTAMP Header
+
+The `BX-TIMESTAMP` header is the number of milliseconds since the UNIX epoch at the time of the request. It is included in the signature string to prevent replay attacks.
+
+## Constructing the BX-SIGNATURE Header
+
+The `BX-SIGNATURE` is computed by building a canonical string from the request parameters, hashing it, and signing the result.
+
+### Signing Format
+
+This signing format applies to:
+- `POST /trading-api/v2/orders`
+- `POST /trading-api/v2/amm-instructions`
+- `POST /trading-api/v2/command`
+- All [Custody](#) API endpoints
+
+**Benefits of this format:**
+- Null fields do not need to be included in the HTTP request body.
+- Fields do not need to be strictly ordered in the HTTP request body.
+
+### Step 1 — Build the Canonical String
+
+Concatenate the following fields in order (no separator):
+
+```
+<BX-TIMESTAMP><BX-NONCE><HTTP_METHOD><REQUEST_PATH><REQUEST_BODY>
+```
+
+| Component | Description |
+|---|---|
+| `BX-TIMESTAMP` | The value sent in the `BX-TIMESTAMP` header. |
+| `BX-NONCE` | The value sent in the `BX-NONCE` header. |
+| `HTTP_METHOD` | The HTTP method in uppercase, e.g. `POST`. |
+| `REQUEST_PATH` | The full request path, e.g. `/trading-api/v2/orders`. |
+| `REQUEST_BODY` | The JSON request body with all spaces and newline characters removed. |
+
+The **exact same** JSON string used to build the canonical string must be sent as the HTTP request body.
+
+### Step 2 — Sign the String
+
+<Tabs>
+  <Tab title="ECDSA API Key">
+    1. Hash the canonical string using **SHA-256** and take the hexdigest.
+    2. Sign the hexdigest with your ECDSA `PRIVATE_KEY`.
+    3. DER-encode the resulting signature.
+    4. Base64-encode the DER-encoded signature.
+
+    The base64-encoded result is your `BX-SIGNATURE` value.
+
+    See [sign a request with ECDSA](https://github.com/bullish-exchange/api-examples/blob/master/orders/create_order_ecdsa.py) for a sample Python script.
+  </Tab>
+  <Tab title="HMAC API Key">
+    1. Hash the canonical string using **SHA-256** and take the hexdigest.
+    2. Sign the hexdigest with your HMAC secret key.
+
+    The resulting value is your `BX-SIGNATURE` value.
+
+    See [sign a request with HMAC](https://github.com/bullish-exchange/api-examples/blob/master/orders/create_order_hmac.py) for a sample Python script.
+  </Tab>
+</Tabs>
+
+## BX-RATELIMIT-TOKEN Header
+
+Each trading account has a unique rate limit token that is used to access higher rate limit tiers.
+
+- Without a `BX-RATELIMIT-TOKEN` header, the **default rate limit of 50 messages per second** applies.
+- To access higher tiers, include the `BX-RATELIMIT-TOKEN` header with the token for the relevant trading account.
+
+### Obtaining Your Rate Limit Token
+
+Retrieve rate limit tokens from:
+
+```
+GET /trading-api/v1/accounts/trading-accounts
+```
+
+Each trading account in the response includes its associated rate limit token. Pass the appropriate token in the `BX-RATELIMIT-TOKEN` request header.
+
+<Note>
+  For more information on increasing your rate limits beyond the available tiers, contact your sales representative.
+</Note>
+
+## Ensuring the Order of Create Order / Cancel Order Requests
+
+To guarantee that create order and cancel order requests are processed in the intended sequence, wait for the acknowledgement response — which contains the server-generated `orderId` — before sending the next request.
+
+The `nonce` for these requests must be a unique, monotonically increasing integer. If multiple requests are dispatched simultaneously without waiting for acknowledgements:
+
+- Requests are processed in parallel by the exchange.
+- Validation of each request's `nonce` occurs at the time it arrives, which may differ from the order sent.
+- Any request with a `nonce` lower than the most recently validated `nonce` is considered invalid and dropped.
+- In the worst case, the request with the highest `nonce` is validated first, causing all earlier requests to be rejected.
+
+**Best practice:** send one order request at a time and wait for the `orderId` acknowledgement before proceeding.
+
+### Out-of-Order Processing with BX-NONCE-WINDOW-ENABLED
+
+For use cases that require concurrent order submission, the `BX-NONCE-WINDOW-ENABLED` header enables out-of-order processing:
+
+| Header | Value |
+|---|---|
+| `BX-NONCE-WINDOW-ENABLED` | `"true"` or `"false"` (string representation of a boolean) |
+
+When set to `"true"`, the strict incrementing requirement is relaxed: nonces are only required to be **unique** (not strictly ordered), within a window of **100** from the highest previously used nonce value (inclusive).
+
+For example, with `BX-NONCE-WINDOW-ENABLED: true`, you can send nonce values `1` through `100` in any order and all will be accepted.
+
+## How EMS/Brokers Flag Their Executions
+
+EMS platforms and brokers can flag their executions sent to Bullish using the `BX-REFERRER` header:
+
+| Header | Description |
+|---|---|
+| `BX-REFERRER` | A unique identifier assigned to your EMS or broker by Bullish. |
+
+This header is applicable to the following authenticated endpoints:
+1. [Create Order](#) — `POST /trading-api/v2/orders`
+2. [Create OTC Trade](#) — `POST /trading-api/v2/otc-trades`
+
+Contact your relationship manager to find out which referrer identifier has been assigned to you.
+
+## Code Examples
+
+Sample Python scripts are available in the official [api-examples](https://github.com/bullish-exchange/api-examples) repository:
+
+- [`create_order_ecdsa.py`](https://github.com/bullish-exchange/api-examples/blob/master/orders/create_order_ecdsa.py) — Sign and create an order using ECDSA
+- [`create_order_hmac.py`](https://github.com/bullish-exchange/api-examples/blob/master/orders/create_order_hmac.py) — Sign and create an order using HMAC

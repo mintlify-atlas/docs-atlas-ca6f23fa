@@ -1,0 +1,227 @@
+---
+title: "Custody Wallet API — Transaction History and Withdrawal Limits"
+sidebarTitle: "Wallets"
+description: "REST endpoints for Bullish Exchange custody wallet management — query transaction history and check withdrawal limits per asset symbol."
+---
+
+The custody wallet endpoints let you retrieve a full history of deposits and withdrawals on your account, and check how much of your withdrawal allowance remains for any given asset. Both endpoints are authenticated and are subject to the shared custody rate limit of **40 requests per IP, per minute** across all `/wallets/*` endpoints.
+
+<Warning>
+  Custody endpoints require an **ECDSA API key**. JWT tokens generated from an HMAC API key are only valid for trading endpoints and will be rejected by all `/wallets/*` routes. Make sure you authenticate with an ECDSA key before calling any custody endpoint.
+</Warning>
+
+---
+
+## GET /trading-api/v1/wallets/transactions
+
+Retrieve the custody transaction history for your account, including both deposits and withdrawals. Results are returned as a paginated array ordered from most recent to oldest.
+
+The endpoint supports cursor-based pagination (default page size: 25; allowed values: 5, 25, 50, 100) and an optional datetime range filter so you can narrow results to a specific window.
+
+<Note>
+  Custody endpoints use a **non-multiplied asset format** for long-decimal assets. For example, where the Trading API references `SHIB1M` or `PEPE1M`, this endpoint uses the real-world symbol `SHIB` or `PEPE`. See the [Bullish Help Centre](https://bullishexchange.atlassian.net/wiki/spaces/BHC/pages/20807684/Understanding+Multiplied+Assets+PEPE1M+and+SHIB1M) for full details.
+</Note>
+
+### Request parameters
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token obtained from the JWT login endpoint. Must be generated using an ECDSA API key.
+
+  Example: `Bearer <jwt_token>`
+</ParamField>
+
+<ParamField query="createdAtDatetime[gte]" type="string">
+  Start of the datetime range filter. ISO 8601 format with millisecond precision.
+
+  Example: `2024-01-01T00:00:00.000Z`
+</ParamField>
+
+<ParamField query="createdAtDatetime[lte]" type="string">
+  End of the datetime range filter. ISO 8601 format with millisecond precision.
+
+  Example: `2024-01-31T23:59:59.999Z`
+</ParamField>
+
+<ParamField query="_pageSize" type="integer">
+  Number of records per page. Allowed values: `5`, `25`, `50`, `100`. Defaults to `25`.
+</ParamField>
+
+<ParamField query="_metaData" type="boolean">
+  Set to `true` to include `links` in the response body containing `next` and `previous` page cursors.
+</ParamField>
+
+<ParamField query="_nextPage" type="string">
+  Cursor for the next page, obtained from a previous paginated response.
+</ParamField>
+
+<ParamField query="_previousPage" type="string">
+  Cursor for the previous page, obtained from a previous paginated response.
+</ParamField>
+
+### Response fields
+
+<ResponseField name="custodyTransactionId" type="string">
+  Unique identifier for the deposit or withdrawal transaction.
+
+  Example: `DB:9e6304a08c9cc2a33e6bc6429a088eae2a6b940c8e312aede3a3780257b9b979`
+</ResponseField>
+
+<ResponseField name="direction" type="string">
+  Direction of the transaction from the API user's perspective. One of `DEPOSIT` or `WITHDRAWAL`.
+</ResponseField>
+
+<ResponseField name="quantity" type="string">
+  Total quantity involved in the transaction, in units of the symbol (not in smaller denominations such as Satoshi or Wei).
+
+  Example: `100000.00`
+</ResponseField>
+
+<ResponseField name="symbol" type="string">
+  Asset symbol for the transaction, e.g. `USDC`, `BTC`, `ETH`, `SHIB`.
+</ResponseField>
+
+<ResponseField name="network" type="string">
+  The network on which the transaction was performed, e.g. `BTC`, `ETH`, `SOL`.
+</ResponseField>
+
+<ResponseField name="fee" type="string">
+  Withdrawal fee charged in units of the symbol itself, not in smaller denominations.
+
+  Example: `3.00`
+</ResponseField>
+
+<ResponseField name="memo" type="string">
+  Memo or destination tag used during the transaction to identify the account.
+
+  Example: `925891241`
+</ResponseField>
+
+<ResponseField name="createdAtDateTime" type="string">
+  ISO 8601 datetime when the transaction was first created.
+
+  Example: `2022-09-16T07:56:15.000Z`
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current status of the transaction. One of `PENDING`, `COMPLETE`, `CANCELLED`, or `FAILED`.
+</ResponseField>
+
+<ResponseField name="transactionDetails" type="object">
+  Additional on-chain or network details for the transaction.
+
+  <Expandable title="transactionDetails fields">
+    <ResponseField name="address" type="string">
+      Crypto network address involved in the transaction.
+
+      Example: `0xb0a64d976972d87b0783eeb1ff88306cd1891f02`
+    </ResponseField>
+
+    <ResponseField name="blockchainTxId" type="string">
+      On-chain transaction ID.
+
+      Example: `0xec557f2c7278d2dae2d98a27b9bd43f386789a4209090cbbd11595f1bed4a4c2`
+    </ResponseField>
+
+    <ResponseField name="swiftUetr" type="string">
+      Unique end-to-end transaction reference for SWIFT fiat transactions.
+
+      Example: `b55aa5cd-baa2-4122-8c17-ae9b856ae36a`
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/wallets/transactions?createdAtDatetime[gte]=2024-01-01T00:00:00.000Z&createdAtDatetime[lte]=2024-01-31T23:59:59.999Z&_pageSize=25&_metaData=true" \
+  -H "Authorization: Bearer <jwt_token>"
+```
+
+### Example response
+
+```json
+{
+  "data": [
+    {
+      "custodyTransactionId": "DB:9e6304a08c9cc2a33e6bc6429a088eae2a6b940c8e312aede3a3780257b9b979",
+      "direction": "DEPOSIT",
+      "quantity": "1.00000000",
+      "symbol": "ETH",
+      "network": "ETH",
+      "fee": "0.00",
+      "memo": "925891241",
+      "createdAtDateTime": "2024-01-15T10:23:44.000Z",
+      "status": "COMPLETE",
+      "transactionDetails": {
+        "address": "0xb0a64d976972d87b0783eeb1ff88306cd1891f02",
+        "blockchainTxId": "0xec557f2c7278d2dae2d98a27b9bd43f386789a4209090cbbd11595f1bed4a4c2"
+      }
+    }
+  ],
+  "links": {
+    "next": "/trading-api/v1/wallets/transactions?_pageSize=25&_nextPage=Mjk3NzM1MzQ5NDI0NjIwMDMy",
+    "previous": null
+  }
+}
+```
+
+---
+
+## GET /trading-api/v1/wallets/limits/{symbol}
+
+Returns the 24-hour withdrawal limit and the remaining available withdrawal amount for a specific asset symbol. Use this endpoint to check how much of your withdrawal quota you have consumed before submitting a withdrawal request.
+
+<Note>
+  Custody endpoints use a non-multiplied asset format. Query using `SHIB` or `PEPE`, not `SHIB1M` or `PEPE1M`.
+</Note>
+
+### Request parameters
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token obtained from the JWT login endpoint. Must be generated using an ECDSA API key.
+
+  Example: `Bearer <jwt_token>`
+</ParamField>
+
+<ParamField path="symbol" type="string" required>
+  Asset symbol to query withdrawal limits for. Uses the non-multiplied custody format.
+
+  Example: `BTC`, `ETH`, `USDC`, `SHIB`
+</ParamField>
+
+### Response fields
+
+<ResponseField name="symbol" type="string">
+  The asset symbol these limits apply to.
+
+  Example: `USDC`
+</ResponseField>
+
+<ResponseField name="available" type="string">
+  Remaining amount that can be withdrawn right now, in units of the symbol itself (not smaller denominations such as Satoshi or Wei).
+
+  Example: `20000.0`
+</ResponseField>
+
+<ResponseField name="twentyFourHour" type="string">
+  Maximum amount that can be withdrawn over a rolling 24-hour period, in units of the symbol itself.
+
+  Example: `1000000.00`
+</ResponseField>
+
+### Example request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/wallets/limits/BTC" \
+  -H "Authorization: Bearer <jwt_token>"
+```
+
+### Example response
+
+```json
+{
+  "symbol": "BTC",
+  "available": "1.50000000",
+  "twentyFourHour": "2.00000000"
+}
+```

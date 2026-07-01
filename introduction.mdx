@@ -1,0 +1,107 @@
+---
+title: "Bullish Exchange API: Programmatic Access to a Regulated Exchange"
+sidebarTitle: "Introduction"
+description: "Overview of the Bullish Exchange API suite — REST Trading, Aggregator, Custody, WebSocket, and FIX protocol endpoints for digital asset trading."
+---
+
+The Bullish Exchange API gives institutional and algorithmic traders programmatic access to one of the world's regulated digital asset exchanges. Using these APIs you can manage orders, stream real-time market data, execute custody operations, and automate liquidity provisioning — all via industry-standard protocols over a high-performance infrastructure.
+
+## What the API Enables
+
+- **Order management** — Create, amend, and cancel spot and margin orders against any listed market
+- **Account management** — Query trading account balances, positions, and fee schedules
+- **Market data** — Retrieve order books, trades, candles, index prices, and funding rates
+- **Custody operations** — Initiate and track crypto and fiat deposits and withdrawals
+- **Automated market making** — Add and remove AMM liquidity positions programmatically
+- **Real-time streaming** — Subscribe to live order, trade, and market-data events via WebSocket
+- **Low-latency execution** — Connect via Direct Connect (AWS PrivateLink or GCP Private Service Connect) for co-located access
+
+## API Families
+
+The Bullish API suite is organised into several distinct families, each serving a different purpose.
+
+| API | Protocol | Description |
+|-----|----------|-------------|
+| **Trading API** | REST (HTTPS) | Authenticated endpoints for order placement, account data, trades, AMM, and custody |
+| **Aggregator API** | REST (HTTPS) | Unauthenticated public endpoints for tickers, order books, and recent trades |
+| **WebSocket API** | WSS | Real-time streams for private account data and public market data |
+| **Custody API** | REST (HTTPS) | Wallet transactions, deposit/withdrawal instructions, and limits (part of the Trading API) |
+| **FIX API** | FIX 4.2 | Low-latency order entry for institutional clients over private network connections |
+
+### Trading API (REST)
+
+The Trading API follows [REST](https://en.wikipedia.org/wiki/Representational_state_transfer) conventions and is the primary interface for trading operations. It is divided into authenticated endpoints (private client data, e.g. placing an order) and non-authenticated endpoints (public data, e.g. retrieving markets).
+
+### Aggregator API
+
+The Aggregator API exposes lightweight, unauthenticated endpoints for market data aggregation — ideal for price feeds and order-book snapshots at depth 200.
+
+### WebSocket Streams
+
+WebSocket connections use JWT cookie-based authentication for private streams and require no authentication for public streams. Each connection exposes a set of subscribable topics for real-time updates.
+
+### Custody API
+
+Custody endpoints are part of the Trading API and allow you to query transaction history, retrieve deposit instructions, and submit withdrawal requests for both crypto and fiat assets.
+
+### FIX API
+
+The FIX API is available to institutional clients and is accessible exclusively through AWS PrivateLink or GCP Private Service Connect. Refer to the [Bullish FIX Protocol Specification](https://github.com/bullish-exchange/api-docs) for the full message specification.
+
+## Base URL
+
+All Trading API requests are made against:
+
+```
+https://api.exchange.bullish.com
+```
+
+Full API paths follow the pattern:
+
+```
+https://api.exchange.bullish.com/trading-api/v2/orders
+```
+
+See the [Environments](/environments) page for the complete list of production and sandbox base URLs, including Direct Connect endpoints.
+
+## Authentication
+
+The Bullish API uses **bearer-based JWT authentication**. Every authenticated request must include:
+
+```
+Authorization: Bearer <JWT_TOKEN>
+```
+
+A JWT token is valid for **24 hours**. To obtain one you must first generate an API key (ECDSA or HMAC) through the Bullish web UI, then call the login endpoint. Full details are covered in the [Quickstart](/quickstart).
+
+**Key types:**
+
+- **ECDSA** — A public/private key pair using the P-256 curve. Suitable for both trading and custody endpoints. The private key is used to sign request payloads.
+- **HMAC** — A shared secret key for HMAC-based signing. Valid for trading endpoints only.
+
+<Note>
+  The API may add new fields to existing response payloads at any time. Do **not** use strict deserialisation in your client code, as it may cause compatibility issues when new fields are introduced.
+</Note>
+
+## Quick Navigation
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Generate an API key, obtain a JWT, and place your first order in five steps.
+  </Card>
+  <Card title="Environments" icon="server" href="/environments">
+    Production, sandbox, and Direct Connect base URLs for all API families.
+  </Card>
+  <Card title="Trading API Reference" icon="book" href="https://api.exchange.bullish.com/trading-api">
+    Full OpenAPI reference for all REST Trading API endpoints.
+  </Card>
+  <Card title="Code Examples" icon="code" href="https://github.com/bullish-exchange/api-examples">
+    Python sample scripts for authentication, order management, and WebSocket streaming.
+  </Card>
+  <Card title="Aggregator API Reference" icon="chart-bar" href="https://api.exchange.bullish.com/aggregator-api/v1">
+    Public market data endpoints for tickers, order books, and trades.
+  </Card>
+  <Card title="Error & Rejection Codes" icon="triangle-exclamation" href="https://github.com/bullish-exchange/api-docs/wiki/Error-&-Rejection-Codes">
+    Comprehensive list of order and custody status reason codes.
+  </Card>
+</CardGroup>

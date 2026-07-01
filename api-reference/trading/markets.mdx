@@ -1,0 +1,870 @@
+---
+title: "Markets and Market Data REST API Endpoints"
+sidebarTitle: "Markets"
+description: "REST endpoints for Bullish Exchange markets — retrieve market info, order books, candles, tick data, trades, index prices, and funding rates."
+---
+
+The Markets API provides public, non-authenticated access to market structure, real-time order books, tick data, OHLCV candles, anonymous trade history, index prices, and funding rates. These endpoints are rate limited; see the [Rate Limits](/concepts/rate-limits) section for details.
+
+---
+
+## GET /trading-api/v1/markets
+
+Retrieves a list of all active markets on the exchange. Clients can ignore test markets. Note: `Leverage = Collateral ÷ (Collateral - Debt)`.
+
+<Note>
+  **Authentication:** Not required. This is a public endpoint.
+</Note>
+
+### Query Parameters
+
+<ParamField query="marketType" type="string" required={false}>
+  Filter markets by type. Enum: `SPOT`, `PERPETUAL`, `DATED_FUTURE`, `OPTION`.
+</ParamField>
+
+<ParamField query="optionType" type="string" required={false}>
+  Filter by option type. If present, only option markets are returned. Enum: `CALL`, `PUT`.
+</ParamField>
+
+### Response Fields
+
+<ResponseField name="marketId" type="string">
+  Unique market ID.
+</ResponseField>
+
+<ResponseField name="symbol" type="string">
+  Market symbol, e.g. `BTCUSD`, `BTC-USDC-PERP`, `BTC-USDC-20250901-90000-C`.
+</ResponseField>
+
+<ResponseField name="baseSymbol" type="string">
+  Base asset symbol (spot markets). E.g. `BTC`.
+</ResponseField>
+
+<ResponseField name="quoteSymbol" type="string">
+  Quote asset symbol (spot markets). E.g. `USD`.
+</ResponseField>
+
+<ResponseField name="basePrecision" type="integer">
+  Number of decimal digits after the dot for base asset quantities. E.g. `8`.
+</ResponseField>
+
+<ResponseField name="quotePrecision" type="integer">
+  Number of decimal digits after the dot for quote asset amounts. E.g. `4`.
+</ResponseField>
+
+<ResponseField name="pricePrecision" type="integer">
+  Number of decimal digits after the dot for price. E.g. `8`.
+</ResponseField>
+
+<ResponseField name="quantityPrecision" type="integer">
+  Number of decimal digits after the dot for quantity. E.g. `8`.
+</ResponseField>
+
+<ResponseField name="tickSize" type="string">
+  Minimum price increment for the market.
+</ResponseField>
+
+<ResponseField name="minQuantityLimit" type="string">
+  Minimum order quantity allowed.
+</ResponseField>
+
+<ResponseField name="maxQuantityLimit" type="string">
+  Maximum order quantity allowed.
+</ResponseField>
+
+<ResponseField name="minPriceLimit" type="string">
+  Minimum order price allowed.
+</ResponseField>
+
+<ResponseField name="maxPriceLimit" type="string">
+  Maximum order price allowed.
+</ResponseField>
+
+<ResponseField name="spotTradingEnabled" type="boolean">
+  Whether spot trading is enabled for this market.
+</ResponseField>
+
+<ResponseField name="marginTradingEnabled" type="boolean">
+  Whether margin trading is enabled for this market.
+</ResponseField>
+
+<ResponseField name="marketEnabled" type="boolean">
+  Whether the market is currently active.
+</ResponseField>
+
+<ResponseField name="createOrderEnabled" type="boolean">
+  Whether new orders can be submitted.
+</ResponseField>
+
+<ResponseField name="cancelOrderEnabled" type="boolean">
+  Whether orders can be cancelled.
+</ResponseField>
+
+<ResponseField name="marketType" type="string">
+  Market type. One of `SPOT`, `PERPETUAL`, `DATED_FUTURE`, `OPTION`.
+</ResponseField>
+
+<ResponseField name="expiryDatetime" type="string">
+  ISO 8601 datetime of market expiry (applicable to `DATED_FUTURE` and `OPTION` markets). E.g. `2024-10-04T08:00:00.000Z`.
+</ResponseField>
+
+<ResponseField name="optionStrikePrice" type="string">
+  Strike price of the option (applicable to `OPTION` markets). E.g. `"70000.0000"`.
+</ResponseField>
+
+<ResponseField name="optionType" type="string">
+  `CALL` or `PUT` (applicable to `OPTION` markets).
+</ResponseField>
+
+<ResponseField name="openInterestUSD" type="string">
+  Cumulative notional value of all open interest for this derivative contract.
+</ResponseField>
+
+<ResponseField name="feeTiers" type="array">
+  All available fee tiers for this market.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/markets" \
+  -H "Content-Type: application/json"
+```
+
+### Example Response
+
+```json
+[
+  {
+    "marketId": "1",
+    "symbol": "BTCUSD",
+    "baseSymbol": "BTC",
+    "quoteSymbol": "USD",
+    "basePrecision": 8,
+    "quotePrecision": 4,
+    "pricePrecision": 4,
+    "quantityPrecision": 8,
+    "costPrecision": 8,
+    "tickSize": "0.0001",
+    "minQuantityLimit": "0.00010000",
+    "maxQuantityLimit": "100.00000000",
+    "minPriceLimit": "1.0000",
+    "maxPriceLimit": "9999999.0000",
+    "spotTradingEnabled": true,
+    "marginTradingEnabled": true,
+    "marketEnabled": true,
+    "createOrderEnabled": true,
+    "cancelOrderEnabled": true,
+    "marketType": "SPOT",
+    "expiryDatetime": null,
+    "openInterestUSD": null
+  }
+]
+```
+
+---
+
+## GET /trading-api/v1/markets/{symbol}
+
+Retrieves a single market by its symbol. Returns the same schema as the list endpoint.
+
+<Note>
+  **Authentication:** Not required.
+</Note>
+
+### Path Parameters
+
+<ParamField path="symbol" type="string" required>
+  Market symbol, e.g. `BTCUSD`, `BTC-USDC-PERP`.
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/markets/BTCUSD"
+```
+
+---
+
+## GET /trading-api/v1/markets/{symbol}/orderbook/hybrid
+
+Returns the current hybrid order book for the specified market, combining AMM liquidity with resting limit orders.
+
+<Note>
+  **Authentication:** Not required. **Rate limited:** No.
+</Note>
+
+### Path Parameters
+
+<ParamField path="symbol" type="string" required>
+  Market symbol to retrieve the order book for.
+</ParamField>
+
+### Response Fields
+
+<ResponseField name="bids" type="array">
+  List of bid price-quantity tuples, sorted best (highest) first.
+  <Expandable title="Bid entry">
+    <ResponseField name="[0]" type="string">Price level.</ResponseField>
+    <ResponseField name="[1]" type="string">Quantity available at this price level.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="asks" type="array">
+  List of ask price-quantity tuples, sorted best (lowest) first.
+  <Expandable title="Ask entry">
+    <ResponseField name="[0]" type="string">Price level.</ResponseField>
+    <ResponseField name="[1]" type="string">Quantity available at this price level.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="datetime" type="string">
+  ISO 8601 datetime of the order book snapshot.
+</ResponseField>
+
+<ResponseField name="timestamp" type="string">
+  Millisecond EPOCH timestamp of the order book snapshot.
+</ResponseField>
+
+<ResponseField name="sequenceNumber" type="integer">
+  Incrementing unique identifier for this order book snapshot. E.g. `999`.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/markets/BTCUSD/orderbook/hybrid"
+```
+
+### Example Response
+
+```json
+{
+  "bids": [
+    ["50000.0000", "0.50000000"],
+    ["49999.0000", "1.20000000"]
+  ],
+  "asks": [
+    ["50001.0000", "0.30000000"],
+    ["50002.0000", "0.80000000"]
+  ],
+  "datetime": "2024-10-04T08:00:00.000Z",
+  "timestamp": "1728028800000",
+  "sequenceNumber": 1042
+}
+```
+
+---
+
+## GET /trading-api/v1/markets/{symbol}/trades
+
+Returns the 100 most recent trades for a given market. Data is sourced from a local cache.
+
+<Note>
+  **Authentication:** Not required. **Rate limited:** No.
+</Note>
+
+### Path Parameters
+
+<ParamField path="symbol" type="string" required>
+  Market symbol.
+</ParamField>
+
+### Response Fields (array of trades)
+
+<ResponseField name="tradeId" type="string">
+  Unique trade ID.
+</ResponseField>
+
+<ResponseField name="symbol" type="string">
+  Market symbol.
+</ResponseField>
+
+<ResponseField name="price" type="string">
+  Execution price.
+</ResponseField>
+
+<ResponseField name="quantity" type="string">
+  Execution quantity.
+</ResponseField>
+
+<ResponseField name="side" type="string">
+  `BUY` or `SELL`.
+</ResponseField>
+
+<ResponseField name="isTaker" type="boolean">
+  Whether this is a taker trade.
+</ResponseField>
+
+<ResponseField name="createdAtDatetime" type="string">
+  ISO 8601 datetime of trade execution.
+</ResponseField>
+
+<ResponseField name="createdAtTimestamp" type="string">
+  Millisecond EPOCH timestamp of trade execution.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/markets/BTCUSD/trades"
+```
+
+### Example Response
+
+```json
+[
+  {
+    "tradeId": "390755652232282113",
+    "symbol": "BTCUSD",
+    "price": "50000.0000",
+    "quantity": "0.10000000",
+    "side": "BUY",
+    "isTaker": true,
+    "createdAtDatetime": "2024-10-04T08:00:00.000Z",
+    "createdAtTimestamp": "1728028800000"
+  }
+]
+```
+
+---
+
+## GET /trading-api/v1/markets/{symbol}/tick
+
+Returns the current tick (24-hour rolling statistics) for a market.
+
+<Note>
+  **Authentication:** Not required. **Rate limited:** No.
+</Note>
+
+### Path Parameters
+
+<ParamField path="symbol" type="string" required>
+  Market symbol. Only perpetual markets are supported.
+</ParamField>
+
+### Response Fields
+
+<ResponseField name="high" type="string">
+  Highest price in the 24-hour window.
+</ResponseField>
+
+<ResponseField name="low" type="string">
+  Lowest price in the 24-hour window.
+</ResponseField>
+
+<ResponseField name="bestBid" type="string">
+  Current best bid price.
+</ResponseField>
+
+<ResponseField name="bidVolume" type="string">
+  Quantity at the best bid.
+</ResponseField>
+
+<ResponseField name="bestAsk" type="string">
+  Current best ask price.
+</ResponseField>
+
+<ResponseField name="askVolume" type="string">
+  Quantity at the best ask.
+</ResponseField>
+
+<ResponseField name="vwap" type="string">
+  Volume-weighted average price.
+</ResponseField>
+
+<ResponseField name="open" type="string">
+  Opening price for the period.
+</ResponseField>
+
+<ResponseField name="close" type="string">
+  Price of the last trade (closing price for the current period).
+</ResponseField>
+
+<ResponseField name="last" type="string">
+  Last traded price.
+</ResponseField>
+
+<ResponseField name="change" type="string">
+  Absolute price change over the period.
+</ResponseField>
+
+<ResponseField name="percentage" type="string">
+  Percentage price change over the period.
+</ResponseField>
+
+<ResponseField name="baseVolume" type="string">
+  24-hour volume in base asset.
+</ResponseField>
+
+<ResponseField name="quoteVolume" type="string">
+  24-hour volume in quote asset.
+</ResponseField>
+
+<ResponseField name="createdAtDatetime" type="string">
+  ISO 8601 datetime of tick snapshot.
+</ResponseField>
+
+<ResponseField name="createdAtTimestamp" type="string">
+  Millisecond EPOCH timestamp of tick snapshot.
+</ResponseField>
+
+<ResponseField name="lastTradeDatetime" type="string">
+  ISO 8601 datetime of the last trade.
+</ResponseField>
+
+<ResponseField name="lastTradeTimestamp" type="string">
+  Millisecond EPOCH timestamp of the last trade.
+</ResponseField>
+
+<ResponseField name="lastTradeQuantity" type="string">
+  Quantity of the last trade.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/markets/BTC-USDC-PERP/tick"
+```
+
+---
+
+## GET /trading-api/v1/markets/{symbol}/candle
+
+Returns historical OHLCV (Open-High-Low-Close-Volume) candle data for a market over a specified time window and bucket size. Supports [pagination](/concepts/pagination).
+
+<Note>
+  **Authentication:** Not required. **Rate limited:** No.
+</Note>
+
+### Path Parameters
+
+<ParamField path="symbol" type="string" required>
+  Market symbol.
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="createdAtDatetime[gte]" type="string" required>
+  Start of the time window. ISO 8601 with millisecond, e.g. `2024-10-01T00:00:00.000Z`.
+</ParamField>
+
+<ParamField query="createdAtDatetime[lte]" type="string" required>
+  End of the time window. ISO 8601 with millisecond.
+</ParamField>
+
+<ParamField query="timeBucket" type="string" required>
+  Size of each candle. One of: `1m`, `5m`, `30m`, `1h`, `6h`, `12h`, `1d`.
+</ParamField>
+
+### Response Fields (array of candles)
+
+<ResponseField name="open" type="string">
+  Opening price for the candle period.
+</ResponseField>
+
+<ResponseField name="high" type="string">
+  Highest price during the candle period.
+</ResponseField>
+
+<ResponseField name="low" type="string">
+  Lowest price during the candle period.
+</ResponseField>
+
+<ResponseField name="close" type="string">
+  Closing price for the candle period.
+</ResponseField>
+
+<ResponseField name="volume" type="string">
+  Trading volume during the candle period.
+</ResponseField>
+
+<ResponseField name="createdAtDatetime" type="string">
+  ISO 8601 datetime for the start of the candle.
+</ResponseField>
+
+<ResponseField name="createdAtTimestamp" type="string">
+  Millisecond EPOCH timestamp for the start of the candle.
+</ResponseField>
+
+<ResponseField name="publishedAtTimestamp" type="string">
+  Millisecond EPOCH timestamp when the candle was published.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/markets/BTCUSD/candle?createdAtDatetime%5Bgte%5D=2024-10-01T00%3A00%3A00.000Z&createdAtDatetime%5Blte%5D=2024-10-02T00%3A00%3A00.000Z&timeBucket=1h"
+```
+
+### Example Response
+
+```json
+[
+  {
+    "open": "49800.0000",
+    "high": "50200.0000",
+    "low": "49500.0000",
+    "close": "50100.0000",
+    "volume": "123.45000000",
+    "createdAtDatetime": "2024-10-01T00:00:00.000Z",
+    "createdAtTimestamp": "1727740800000",
+    "publishedAtTimestamp": "1727744400000"
+  }
+]
+```
+
+---
+
+## GET /trading-api/v1/history/markets/{symbol}
+
+Returns historical market metadata for a specified market symbol. This endpoint returns data even for expired markets and is only applicable to `DATED_FUTURE` and `OPTION` markets.
+
+<Note>
+  **Authentication:** Not required.
+</Note>
+
+### Path Parameters
+
+<ParamField path="symbol" type="string" required>
+  Market symbol for a dated future or option market, e.g. `BTC-USDC-20250901`.
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/history/markets/BTC-USDC-20250901"
+```
+
+---
+
+## GET /trading-api/v1/history/markets/{symbol}/trades
+
+Returns paginated historical trade data for a market. Supports querying up to 7 days of data at a time. Only the last 90 days of data are available.
+
+<Note>
+  **Authentication:** Not required. **Rate limited:** No.
+</Note>
+
+### Path Parameters
+
+<ParamField path="symbol" type="string" required>
+  Market symbol.
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="createdAtDatetime[gte]" type="string" required={false}>
+  Start of the datetime range (ISO 8601 with millisecond).
+</ParamField>
+
+<ParamField query="createdAtDatetime[lte]" type="string" required={false}>
+  End of the datetime range (ISO 8601 with millisecond).
+</ParamField>
+
+<ParamField query="tradeId" type="string" required={false}>
+  Filter for a specific trade ID.
+</ParamField>
+
+<ParamField query="_pageSize" type="integer" required={false}>
+  Page size. One of: `5`, `25`, `50`, `100`. Defaults to `25`.
+</ParamField>
+
+<ParamField query="_nextPage" type="string" required={false}>
+  Cursor to the next page, provided in paginated responses.
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/history/markets/BTCUSD/trades?createdAtDatetime%5Bgte%5D=2024-10-01T00%3A00%3A00.000Z&createdAtDatetime%5Blte%5D=2024-10-07T00%3A00%3A00.000Z"
+```
+
+---
+
+## GET /trading-api/v1/history/markets/{symbol}/funding-rate
+
+Returns the historical hourly funding rate for a perpetual market. Only the last 90 days of data are available.
+
+<Note>
+  **Authentication:** Not required.
+</Note>
+
+### Path Parameters
+
+<ParamField path="symbol" type="string" required>
+  Perpetual market symbol, e.g. `BTC-USDC-PERP`.
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="updatedAtDatetime[gte]" type="string" required={false}>
+  Start of the datetime range (ISO 8601 with millisecond).
+</ParamField>
+
+<ParamField query="updatedAtDatetime[lte]" type="string" required={false}>
+  End of the datetime range (ISO 8601 with millisecond).
+</ParamField>
+
+### Response Fields (array)
+
+<ResponseField name="fundingRate" type="string">
+  The funding rate for this hour. E.g. `"0.1"`.
+</ResponseField>
+
+<ResponseField name="updatedAtDatetime" type="string">
+  Date and time of the last funding rate update for the hour. E.g. `"2024-09-16T12:59:59.000Z"`.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/history/markets/BTC-USDC-PERP/funding-rate?updatedAtDatetime%5Bgte%5D=2024-09-16T00%3A00%3A00.000Z&updatedAtDatetime%5Blte%5D=2024-09-17T00%3A00%3A00.000Z"
+```
+
+### Example Response
+
+```json
+[
+  {
+    "fundingRate": "0.0001",
+    "updatedAtDatetime": "2024-09-16T12:59:59.000Z"
+  }
+]
+```
+
+---
+
+## GET /trading-api/v1/index-prices
+
+Returns the index prices for all supported assets.
+
+<Note>
+  **Authentication:** Not required.
+</Note>
+
+### Response Fields (array)
+
+<ResponseField name="assetSymbol" type="string">
+  Asset symbol, e.g. `BTC`.
+</ResponseField>
+
+<ResponseField name="price" type="string">
+  Asset index price in USD. E.g. `"66100.0000"`.
+</ResponseField>
+
+<ResponseField name="updatedAtDatetime" type="string">
+  ISO 8601 datetime when the index price was last updated.
+</ResponseField>
+
+<ResponseField name="updatedAtTimestamp" type="string">
+  Millisecond EPOCH timestamp when the index price was last updated.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/index-prices"
+```
+
+### Example Response
+
+```json
+[
+  {
+    "assetSymbol": "BTC",
+    "price": "66100.0000",
+    "updatedAtDatetime": "2024-10-04T08:00:00.000Z",
+    "updatedAtTimestamp": "1728028800000"
+  }
+]
+```
+
+---
+
+## GET /trading-api/v1/index-prices/{assetSymbol}
+
+Returns the index price for a single asset.
+
+<Note>
+  **Authentication:** Not required.
+</Note>
+
+### Path Parameters
+
+<ParamField path="assetSymbol" type="string" required>
+  Asset symbol, e.g. `BTC`.
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/index-prices/BTC"
+```
+
+---
+
+## GET /trading-api/v1/time
+
+Returns the current exchange time.
+
+<Note>
+  **Authentication:** Not required.
+</Note>
+
+### Response Fields
+
+<ResponseField name="timestamp" type="string">
+  Current exchange time as a millisecond EPOCH timestamp string.
+</ResponseField>
+
+<ResponseField name="datetime" type="string">
+  Current exchange time as an ISO 8601 datetime string.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/time"
+```
+
+### Example Response
+
+```json
+{
+  "timestamp": "1728028800000",
+  "datetime": "2024-10-04T08:00:00.000Z"
+}
+```
+
+---
+
+## GET /trading-api/v1/option-ladder
+
+Returns available options contracts organised by strike price and expiration date, with pricing, implied volatilities, and Greeks.
+
+<Note>
+  **Authentication:** Not required.
+</Note>
+
+### Query Parameters
+
+<ParamField query="baseSymbol" type="string" required>
+  Base asset symbol to retrieve the option ladder for. E.g. `BTC`.
+</ParamField>
+
+<ParamField query="expiry" type="string" required={false}>
+  Filter results by expiry date of option markets.
+</ParamField>
+
+<ParamField query="type" type="string" required={false}>
+  Filter by option type: `CALL` or `PUT`.
+</ParamField>
+
+<ParamField query="sort" type="string" required={false}>
+  Sort results by option type or expiry datetime.
+</ParamField>
+
+### Response Fields (array)
+
+<ResponseField name="symbol" type="string">
+  Option market symbol, e.g. `BTC-USDC-20241004-70000-C`.
+</ResponseField>
+
+<ResponseField name="baseSymbol" type="string">
+  Base asset symbol, e.g. `BTC`.
+</ResponseField>
+
+<ResponseField name="settlementAssetSymbol" type="string">
+  Asset used for mark-to-market settlement.
+</ResponseField>
+
+<ResponseField name="bid" type="string">
+  Best bid price in the order book.
+</ResponseField>
+
+<ResponseField name="ask" type="string">
+  Best ask price in the order book.
+</ResponseField>
+
+<ResponseField name="bidQuantity" type="string">
+  Quantity at the best bid.
+</ResponseField>
+
+<ResponseField name="askQuantity" type="string">
+  Quantity at the best ask.
+</ResponseField>
+
+<ResponseField name="bidIVPercentage" type="string">
+  Implied volatility of the best bid price.
+</ResponseField>
+
+<ResponseField name="askIVPercentage" type="string">
+  Implied volatility of the best ask price.
+</ResponseField>
+
+<ResponseField name="underlyingPrice" type="string">
+  Index price of the base asset.
+</ResponseField>
+
+<ResponseField name="optionStrikePrice" type="string">
+  Strike price of the option market.
+</ResponseField>
+
+<ResponseField name="markPrice" type="string">
+  Mark price of the option market.
+</ResponseField>
+
+<ResponseField name="openInterest" type="string">
+  Amount of outstanding contracts in the exchange.
+</ResponseField>
+
+<ResponseField name="openInterestUSD" type="string">
+  USD value of outstanding contracts.
+</ResponseField>
+
+<ResponseField name="optionType" type="string">
+  `CALL` or `PUT`.
+</ResponseField>
+
+<ResponseField name="expiryDatetime" type="string">
+  ISO 8601 expiry datetime.
+</ResponseField>
+
+<ResponseField name="greeks" type="object">
+  Option pricing Greeks.
+  <Expandable title="Greeks fields">
+    <ResponseField name="delta" type="string">Sensitivity of the option price to a $1 change in the underlying. E.g. `"0.98"`.</ResponseField>
+    <ResponseField name="gamma" type="string">Rate of change of delta per $1 change in the underlying. E.g. `"0.98"`.</ResponseField>
+    <ResponseField name="theta" type="string">Rate of time decay per day. E.g. `"-0.17"`.</ResponseField>
+    <ResponseField name="vega" type="string">Sensitivity to a 1% change in implied volatility. E.g. `"0.05"`.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/option-ladder?baseSymbol=BTC"
+```
+
+---
+
+## GET /trading-api/v1/option-ladder/{symbol}
+
+Returns the option ladder entry for a specific option market symbol.
+
+<Note>
+  **Authentication:** Not required.
+</Note>
+
+### Path Parameters
+
+<ParamField path="symbol" type="string" required>
+  Option market symbol. Only option markets are supported. E.g. `BTC-USDC-20241004-70000-C`.
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/option-ladder/BTC-USDC-20241004-70000-C"
+```

@@ -1,0 +1,95 @@
+---
+title: "Rate Limits for the Bullish Exchange Trading API"
+sidebarTitle: "Rate Limits"
+description: "Per-category and per-IP rate limits on the Bullish Exchange API — public endpoints, authenticated order endpoints, global limits, and rate limit headers."
+---
+
+The Bullish Trading API enforces rate limits to ensure fair access and exchange stability. Limits are applied at multiple levels: per endpoint category, per IP address, and exchange-wide. Understanding how these layers interact helps you design clients that stay within thresholds and handle limit responses gracefully.
+
+## Public Endpoint Rate Limits
+
+The following public endpoints and all of their subpaths are subject to rate limiting. For detailed limit values on public endpoints, contact your Bullish customer support representative.
+
+| Endpoint prefix | Description |
+|---|---|
+| `/trading-api/v1/markets` | Market reference data |
+| `/trading-api/v1/market-data` | Multi-orderbook data |
+| `/trading-api/v1/history/markets` | Historical market trade data |
+| `/trading-api/v1/assets` | Asset reference data |
+| `/trading-api/v1/index-prices` | Index price data |
+| `/trading-api/v1/index-data` | Index data stream |
+
+## Private Endpoint Rate Limits
+
+Authenticated endpoints marked **Ratelimited: True** in their descriptions (for example, Create Order) are subject to rate limits. Private endpoints are grouped into three independent categories — limits for each category are applied separately and do not affect one another:
+
+| Category | Limit |
+|---|---|
+| Unauthenticated endpoints | 50 requests per second |
+| Authenticated `/orders` endpoints | 50 requests per second |
+| Other authenticated endpoints | 50 requests per second |
+
+## Per-IP Rate Limit
+
+In addition to per-category limits, every IP address is subject to a blanket rate limit across all requests combined.
+
+<Warning>
+  Each IP address is limited to **500 requests per 10 seconds** (approximately 50 requests per second). If an IP address exceeds this limit, the API returns HTTP `429 Too Many Requests` and **that IP address is blocked from making any requests for 60 seconds**.
+</Warning>
+
+## Global Rate Limit
+
+The global rate limit is an exchange-wide limit that governs the total flow of requests into the exchange. It applies fairly across all clients simultaneously and is used primarily to protect order flow stability.
+
+When the global rate limit is breached, the `x-ratelimit-global-breach` response header is set to `true`. The global rate limit operates alongside per-category and per-IP limits — it is possible to be within your individual limits while the exchange-wide global limit has been reached.
+
+## Rate Limit Response Headers
+
+When rate limits have **not** been exceeded, the following headers are present on every API response:
+
+| Header | Description |
+|---|---|
+| `x-ratelimit-limit` | Maximum number of requests allowed for the specific API category within the current time period. |
+| `x-ratelimit-remaining` | Number of requests remaining in the current time period for the specific API category. |
+| `x-ratelimit-reset` | The start of the next time period when `x-ratelimit-remaining` resets to the maximum. |
+| `x-ratelimit-global-breach` | `true` if the exchange-wide global limit has been breached; `false` otherwise. |
+
+## Handling Rate Limit Errors
+
+When a per-category or per-IP rate limit is exceeded, the API returns HTTP `429 Too Many Requests` with the following response body:
+
+```json
+{
+  "errorCode": 96000,
+  "errorCodeName": "RATE_LIMIT_EXCEEDED",
+  "message": "Rate limit exceeded"
+}
+```
+
+When the global rate limit is exceeded, the API returns HTTP `429 Too Many Requests` with a different error body:
+
+```json
+{
+  "errorCode": 96001,
+  "errorCodeName": "GLOBAL_RATE_LIMIT_EXCEEDED",
+  "message": "Global rate limit exceeded"
+}
+```
+
+Use `errorCodeName` to distinguish between a per-account limit breach (`RATE_LIMIT_EXCEEDED`) and an exchange-wide breach (`GLOBAL_RATE_LIMIT_EXCEEDED`) when implementing retry logic.
+
+## Higher Rate Limit Tiers with BX-RATELIMIT-TOKEN
+
+Each trading account has a unique rate limit token that unlocks higher rate limit tiers. The token is obtained by calling `GET /trading-api/v1/accounts/trading-accounts` and must be sent on every request via the `BX-RATELIMIT-TOKEN` HTTP request header.
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/orders" \
+  -H "Authorization: Bearer <JWT_TOKEN>" \
+  -H "BX-RATELIMIT-TOKEN: <YOUR_RATE_LIMIT_TOKEN>"
+```
+
+If the `BX-RATELIMIT-TOKEN` header is not provided, the default limit of 50 messages per second applies.
+
+<Note>
+  To increase your rate limits beyond the default tiers, reach out to your Bullish sales representative.
+</Note>

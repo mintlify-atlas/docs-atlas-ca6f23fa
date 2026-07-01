@@ -1,0 +1,285 @@
+---
+title: "Bullish Aggregator API — Public Tickers, Order Books, and Trades"
+sidebarTitle: "Aggregator API"
+description: "Public REST endpoints for Bullish Exchange market data — 24-hour rolling ticker statistics, order book depth, and the last 100 trades per market."
+---
+
+The Bullish Aggregator API provides read-only access to live market data with no authentication required. Use it to retrieve rolling 24-hour ticker statistics for all markets, fetch order book snapshots up to a depth of 200 price levels, or pull the most recent 100 trades for any active market. The API follows REST conventions and returns JSON responses.
+
+<Note>
+  No API key or JWT token is required for any Aggregator API endpoint. All three endpoints are fully public and can be called directly from any HTTP client.
+</Note>
+
+## Base URLs
+
+| Environment      | Base URL                                               |
+| ---------------- | ------------------------------------------------------ |
+| Production       | `https://api.exchange.bullish.com/aggregator-api/v1`   |
+| Security Sandbox | `https://api.bugbounty.bullish.com/aggregator-api/v1`  |
+| API Sandbox      | `https://api.simnext.bullish-test.com/aggregator-api/v1` |
+
+<Note>
+  The Aggregator API uses the **symbolV2 format** which separates base and quote symbols with a hyphen, e.g. `BTC-USD`. This differs from the Trading API, which uses a concatenated format without a separator, e.g. `BTCUSD`. Make sure you use the correct format when constructing path parameters.
+</Note>
+
+---
+
+## GET /tickers
+
+Returns a map of all active markets to their current 24-hour rolling ticker statistics. The response is keyed by the symbolV2 market identifier (e.g. `BTC-USD`), with each value being a Ticker object containing price, volume, and market status fields.
+
+### Request parameters
+
+This endpoint takes no parameters.
+
+### Response fields
+
+The response is a JSON object where each key is a `symbolV2` string and each value is a Ticker object with the following fields:
+
+<ResponseField name="marketId" type="string">
+  Internal numeric market identifier.
+
+  Example: `"10000"`
+</ResponseField>
+
+<ResponseField name="baseSymbol" type="string">
+  Base asset symbol for the market.
+
+  Example: `"BTC"`
+</ResponseField>
+
+<ResponseField name="quoteSymbol" type="string">
+  Quote asset symbol for the market.
+
+  Example: `"USD"`
+</ResponseField>
+
+<ResponseField name="last" type="string">
+  Price of the most recent trade.
+
+  Example: `"11514.1859"`
+</ResponseField>
+
+<ResponseField name="bestAsk" type="string">
+  Current best (lowest) ask price in the order book.
+
+  Example: `"11514.6000"`
+</ResponseField>
+
+<ResponseField name="bestBid" type="string">
+  Current best (highest) bid price in the order book.
+
+  Example: `"11491.5000"`
+</ResponseField>
+
+<ResponseField name="baseVolume" type="string">
+  Total base asset volume traded over the last 24 hours.
+
+  Example: `"0.00000000"`
+</ResponseField>
+
+<ResponseField name="quoteVolume" type="string">
+  Total quote asset volume traded over the last 24 hours.
+
+  Example: `"0.0000"`
+</ResponseField>
+
+<ResponseField name="percentageChange" type="string">
+  Percentage price change over the last 24 hours.
+
+  Example: `"0.00"`
+</ResponseField>
+
+<ResponseField name="high" type="string">
+  Highest trade price over the last 24 hours.
+
+  Example: `"11514.1859"`
+</ResponseField>
+
+<ResponseField name="low" type="string">
+  Lowest trade price over the last 24 hours.
+
+  Example: `"11514.1859"`
+</ResponseField>
+
+<ResponseField name="spotTradingEnabled" type="boolean">
+  Whether spot trading is currently enabled for this market.
+</ResponseField>
+
+<ResponseField name="marginTradingEnabled" type="boolean">
+  Whether margin trading is currently enabled for this market.
+</ResponseField>
+
+<ResponseField name="marketEnabled" type="boolean">
+  Whether the market is currently enabled for any trading activity.
+</ResponseField>
+
+### Example request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/aggregator-api/v1/tickers"
+```
+
+### Example response
+
+```json
+{
+  "BTC-USD": {
+    "marketId": "10000",
+    "baseSymbol": "BTC",
+    "quoteSymbol": "USD",
+    "last": "11514.1859",
+    "bestAsk": "11514.6000",
+    "bestBid": "11491.5000",
+    "baseVolume": "0.00000000",
+    "quoteVolume": "0.0000",
+    "percentageChange": "0.00",
+    "high": "11514.1859",
+    "low": "11514.1859",
+    "spotTradingEnabled": true,
+    "marginTradingEnabled": true,
+    "marketEnabled": true
+  }
+}
+```
+
+---
+
+## GET /orderbook/{symbolV2}
+
+Returns an order book snapshot for the specified market at a depth of up to 200 price levels. By default all available levels are returned. Use the `pct-depth` query parameter to limit the result to bids and asks within a percentage range of the mid-price, which is useful for focusing on liquid price levels.
+
+### Request parameters
+
+<ParamField path="symbolV2" type="string" required>
+  Market symbol in hyphen-separated format.
+
+  Example: `BTC-USD`, `ETH-USD`
+</ParamField>
+
+<ParamField query="pct-depth" type="integer">
+  Optional percentage depth filter. When set, only bids and asks within this percentage of the mid-price are returned. Controls the liquidity range represented in the response.
+
+  Allowed values: `2`, `5`, `10`
+</ParamField>
+
+### Response fields
+
+<ResponseField name="timestamp" type="string">
+  Unix epoch timestamp in milliseconds at which the snapshot was taken.
+
+  Example: `"1645002272035"`
+</ResponseField>
+
+<ResponseField name="bids" type="array">
+  Array of bid price levels. Each element is a two-element array of strings: `[price, quantity]`. Sorted from highest to lowest price.
+
+  Example: `[["11491.5000", "0.09222078"]]`
+</ResponseField>
+
+<ResponseField name="asks" type="array">
+  Array of ask price levels. Each element is a two-element array of strings: `[price, quantity]`. Sorted from lowest to highest price.
+
+  Example: `[["11514.6000", "0.04731108"]]`
+</ResponseField>
+
+### Example request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/aggregator-api/v1/orderbook/BTC-USD"
+```
+
+### Example request with pct-depth
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/aggregator-api/v1/orderbook/BTC-USD?pct-depth=5"
+```
+
+### Example response
+
+```json
+{
+  "timestamp": "1645002272035",
+  "bids": [
+    ["11491.5000", "0.09222078"]
+  ],
+  "asks": [
+    ["11514.6000", "0.04731108"]
+  ]
+}
+```
+
+---
+
+## GET /trades/{symbolV2}
+
+Returns the last 100 trades executed for the specified market, ordered from most recent to oldest. Each trade includes the execution price, quantity, side (BUY or SELL), and timestamps in both Unix milliseconds and ISO 8601 formats.
+
+### Request parameters
+
+<ParamField path="symbolV2" type="string" required>
+  Market symbol in hyphen-separated format.
+
+  Example: `BTC-USD`, `ETH-USD`
+</ParamField>
+
+### Response fields
+
+The response is an array of Trade objects, each with the following fields:
+
+<ResponseField name="tradeId" type="string">
+  Unique identifier for the trade.
+
+  Example: `"4"`
+</ResponseField>
+
+<ResponseField name="price" type="string">
+  Execution price of the trade.
+
+  Example: `"11514.1859"`
+</ResponseField>
+
+<ResponseField name="quantity" type="string">
+  Quantity of the base asset traded.
+
+  Example: `"1.00000000"`
+</ResponseField>
+
+<ResponseField name="side" type="string">
+  Side of the aggressing order. One of `BUY` or `SELL`.
+
+  Example: `"BUY"`
+</ResponseField>
+
+<ResponseField name="createdAtTimestamp" type="string">
+  Time the trade was executed, as a Unix epoch timestamp in milliseconds.
+
+  Example: `"1645002272042"`
+</ResponseField>
+
+<ResponseField name="createdAtDatetime" type="string">
+  Time the trade was executed, in ISO 8601 format with millisecond precision.
+
+  Example: `"2022-02-16T09:04:32.042Z"`
+</ResponseField>
+
+### Example request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/aggregator-api/v1/trades/BTC-USD"
+```
+
+### Example response
+
+```json
+[
+  {
+    "tradeId": "4",
+    "price": "11514.1859",
+    "quantity": "1.00000000",
+    "side": "BUY",
+    "createdAtTimestamp": "1645002272042",
+    "createdAtDatetime": "2022-02-16T09:04:32.042Z"
+  }
+]
+```

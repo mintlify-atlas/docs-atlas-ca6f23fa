@@ -1,0 +1,537 @@
+---
+title: "Account Management API Endpoints for Bullish Exchange"
+sidebarTitle: "Accounts"
+description: "REST endpoints for Bullish Exchange account management — list trading accounts, retrieve account details, query asset balances, and manage transfers."
+---
+
+The Accounts API provides authenticated access to your trading account structure, asset balances, and inter-account transfer functionality. Most endpoints require a bearer JWT. The `tradingAccountId` returned from the trading accounts endpoint is used as a required parameter throughout the rest of the API.
+
+---
+
+## GET /trading-api/v1/accounts/trading-accounts
+
+Returns details for all trading accounts accessible by the API key used in the request.
+
+<Note>
+  **Authentication:** Required. **Rate limited:** Yes.
+</Note>
+
+### Response Fields (array of TradingAccountResponse)
+
+<ResponseField name="tradingAccountId" type="string">
+  Unique ID for the trading account. Used as a required parameter throughout the REST API.
+</ResponseField>
+
+<ResponseField name="tradingAccountName" type="string">
+  Name of the trading account. E.g. `"algo trading account"`.
+</ResponseField>
+
+<ResponseField name="tradingAccountDescription" type="string">
+  Description of the trading account.
+</ResponseField>
+
+<ResponseField name="rateLimitToken" type="string">
+  Unique token for this account. Provide in the `BX-RATELIMIT-TOKEN` request header to access higher rate limit tiers. E.g. `"97d98951b12fb11f330dd9cb1b807d888c702679ee602edcf1ebc6bac17ad63d"`.
+</ResponseField>
+
+<ResponseField name="isPrimaryAccount" type="string">
+  Whether this is the primary account. String representation of boolean.
+</ResponseField>
+
+<ResponseField name="isBorrowing" type="string">
+  Whether the account is currently borrowing.
+</ResponseField>
+
+<ResponseField name="isLending" type="string">
+  Whether the account is currently lending.
+</ResponseField>
+
+<ResponseField name="isDefaulted" type="string">
+  Whether the account is in a defaulted state.
+</ResponseField>
+
+<ResponseField name="maxInitialLeverage" type="string">
+  Maximum initial leverage allowed for this account. E.g. `"1"`.
+</ResponseField>
+
+<ResponseField name="riskLimitUSD" type="string">
+  Maximum allowed borrowing for this account in USD. E.g. `"10000.0000"`.
+</ResponseField>
+
+<ResponseField name="totalCollateralUSD" type="string">
+  Total collateral across all assets in USD. E.g. `"13000.0000"`.
+</ResponseField>
+
+<ResponseField name="totalBorrowedUSD" type="string">
+  Total borrowed across all assets in USD. E.g. `"12000.0000"`.
+</ResponseField>
+
+<ResponseField name="totalLiabilitiesUSD" type="string">
+  Total liabilities for this account in USD. E.g. `"14000.0000"`.
+</ResponseField>
+
+<ResponseField name="initialMarginUSD" type="string">
+  Minimum margin required to purposefully increase risk.
+</ResponseField>
+
+<ResponseField name="warningMarginUSD" type="string">
+  Margin level at which the account receives warning notifications.
+</ResponseField>
+
+<ResponseField name="liquidationMarginUSD" type="string">
+  Minimum margin required to avoid liquidation.
+</ResponseField>
+
+<ResponseField name="fullLiquidationMarginUSD" type="string">
+  Margin level at which full liquidation occurs.
+</ResponseField>
+
+<ResponseField name="defaultedMarginUSD" type="string">
+  Margin level at which the account enters defaulted state.
+</ResponseField>
+
+<ResponseField name="liquidityAddonUSD" type="string">
+  Expected market impact of unwinding the portfolio during a liquidation event.
+</ResponseField>
+
+<ResponseField name="marketRiskUSD" type="string">
+  Worst possible portfolio loss based on scenario analysis.
+</ResponseField>
+
+<ResponseField name="isConcentrationRiskEnabled" type="string">
+  Whether concentration risk checks are enforced for new orders.
+</ResponseField>
+
+<ResponseField name="endCustomerId" type="string">
+  End customer ID used for self-trade prevention. Defaults to the institution ID. Max 32 characters.
+</ResponseField>
+
+<ResponseField name="tradeFeeRate" type="array">
+  Trade fee rates per `feeGroupId` for this trading account.
+</ResponseField>
+
+<ResponseField name="marginProfile" type="object">
+  Market risk multipliers applied to derive the five individual margin requirement values.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/accounts/trading-accounts" \
+  -H "Authorization: Bearer <JWT>"
+```
+
+### Example Response
+
+```json
+[
+  {
+    "tradingAccountId": "111000000000001",
+    "tradingAccountName": "Primary Account",
+    "tradingAccountDescription": "Main algo trading account",
+    "rateLimitToken": "97d98951b12fb11f330dd9cb1b807d888c702679ee602edcf1ebc6bac17ad63d",
+    "isPrimaryAccount": "true",
+    "isBorrowing": "false",
+    "isLending": "false",
+    "isDefaulted": "false",
+    "maxInitialLeverage": "3",
+    "riskLimitUSD": "500000.0000",
+    "totalCollateralUSD": "100000.0000",
+    "totalBorrowedUSD": "0.0000",
+    "totalLiabilitiesUSD": "0.0000",
+    "initialMarginUSD": "0.0000",
+    "warningMarginUSD": "0.0000",
+    "liquidationMarginUSD": "0.0000",
+    "fullLiquidationMarginUSD": "0.0000",
+    "defaultedMarginUSD": "0.0000",
+    "liquidityAddonUSD": "0.0000",
+    "marketRiskUSD": "0.0000",
+    "isConcentrationRiskEnabled": "true"
+  }
+]
+```
+
+---
+
+## GET /trading-api/v1/accounts/trading-accounts/{tradingAccountId}
+
+Returns details for a specific trading account by its ID.
+
+<Note>
+  **Authentication:** Required. **Rate limited:** Yes.
+</Note>
+
+### Path Parameters
+
+<ParamField path="tradingAccountId" type="string" required>
+  ID of the trading account.
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/accounts/trading-accounts/111000000000001" \
+  -H "Authorization: Bearer <JWT>"
+```
+
+---
+
+## GET /trading-api/v1/accounts/asset
+
+Returns asset account balances for all assets held in the specified trading account.
+
+<Note>
+  **Authentication:** Required. **Rate limited:** Yes.
+</Note>
+
+### Query Parameters
+
+<ParamField query="tradingAccountId" type="string" required>
+  ID of the trading account.
+</ParamField>
+
+### Response Fields (array of AssetAccount objects)
+
+<ResponseField name="tradingAccountId" type="string">
+  ID of the trading account.
+</ResponseField>
+
+<ResponseField name="assetId" type="string">
+  Unique asset ID.
+</ResponseField>
+
+<ResponseField name="assetSymbol" type="string">
+  Asset symbol. E.g. `BTC`, `USD`.
+</ResponseField>
+
+<ResponseField name="availableQuantity" type="string">
+  Total assets available to use on the account (total free). Excludes borrowed assets.
+</ResponseField>
+
+<ResponseField name="borrowedQuantity" type="string">
+  Assets that are currently borrowed.
+</ResponseField>
+
+<ResponseField name="lockedQuantity" type="string">
+  Assets locked in open orders, active loans, or AMM instructions.
+</ResponseField>
+
+<ResponseField name="loanedQuantity" type="string">
+  Assets that are currently being loaned to other accounts.
+</ResponseField>
+
+<ResponseField name="updatedAtDatetime" type="string">
+  ISO 8601 datetime of the last balance update.
+</ResponseField>
+
+<ResponseField name="updatedAtTimestamp" type="string">
+  Millisecond EPOCH timestamp of the last balance update.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/accounts/asset?tradingAccountId=111000000000001" \
+  -H "Authorization: Bearer <JWT>"
+```
+
+### Example Response
+
+```json
+[
+  {
+    "tradingAccountId": "111000000000001",
+    "assetId": "1",
+    "assetSymbol": "BTC",
+    "availableQuantity": "5.00000000",
+    "borrowedQuantity": "0.00000000",
+    "lockedQuantity": "1.00000000",
+    "loanedQuantity": "0.00000000",
+    "updatedAtDatetime": "2024-10-04T08:00:00.000Z",
+    "updatedAtTimestamp": "1728028800000"
+  },
+  {
+    "tradingAccountId": "111000000000001",
+    "assetId": "2",
+    "assetSymbol": "USD",
+    "availableQuantity": "100000.0000",
+    "borrowedQuantity": "0.0000",
+    "lockedQuantity": "50000.0000",
+    "loanedQuantity": "0.0000",
+    "updatedAtDatetime": "2024-10-04T08:00:00.000Z",
+    "updatedAtTimestamp": "1728028800000"
+  }
+]
+```
+
+---
+
+## GET /trading-api/v1/accounts/asset/{symbol}
+
+Returns the asset account balance for a specific asset symbol.
+
+<Note>
+  **Authentication:** Required. **Rate limited:** Yes.
+</Note>
+
+### Path Parameters
+
+<ParamField path="symbol" type="string" required>
+  Asset symbol, e.g. `BTC`.
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="tradingAccountId" type="string" required>
+  ID of the trading account.
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/accounts/asset/BTC?tradingAccountId=111000000000001" \
+  -H "Authorization: Bearer <JWT>"
+```
+
+---
+
+## POST /trading-api/v1/command
+
+Transfers assets between two trading accounts. The command must be acknowledged before the transfer takes effect.
+
+<Note>
+  **Authentication:** Required.
+</Note>
+
+### Query Parameters
+
+<ParamField query="commandType" type="string" required>
+  Must be `"V1TransferAsset"`.
+</ParamField>
+
+### Request Headers
+
+<ParamField header="Authorization" type="string" required>
+  `Bearer <JWT>`
+</ParamField>
+
+<ParamField header="BX-SIGNATURE" type="string" required>
+  Request signature.
+</ParamField>
+
+<ParamField header="BX-TIMESTAMP" type="string" required>
+  Milliseconds since EPOCH.
+</ParamField>
+
+<ParamField header="BX-NONCE" type="string" required>
+  Client-side incremented unsigned 64-bit integer as a string.
+</ParamField>
+
+### Example Request Body
+
+```json
+{
+  "commandType": "V2TransferAsset",
+  "fromTradingAccountId": "111000000000001",
+  "toTradingAccountId": "111000000000002",
+  "assetSymbol": "BTC",
+  "quantity": "0.50000000"
+}
+```
+
+### Example Request
+
+```bash
+curl -X POST "https://api.exchange.bullish.com/trading-api/v1/command?commandType=V1TransferAsset" \
+  -H "Authorization: Bearer <JWT>" \
+  -H "BX-SIGNATURE: <SIGNATURE>" \
+  -H "BX-TIMESTAMP: 1728028800000" \
+  -H "BX-NONCE: 1728028800000001" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "commandType": "V2TransferAsset",
+    "fromTradingAccountId": "111000000000001",
+    "toTradingAccountId": "111000000000002",
+    "assetSymbol": "BTC",
+    "quantity": "0.50000000"
+  }'
+```
+
+---
+
+## GET /trading-api/v1/history/transfer
+
+Returns paginated historical transfer records for the authenticated trading account. Only the last 90 days of data are available.
+
+<Note>
+  **Authentication:** Required.
+</Note>
+
+### Query Parameters
+
+<ParamField query="tradingAccountId" type="string" required={false}>
+  ID of the trading account. Mandatory for accounts with multiple trading accounts.
+</ParamField>
+
+<ParamField query="status" type="string" required={false}>
+  Transfer status: `CLOSED`, `OPEN`, or `REJECTED`. Defaults to `CLOSED`.
+</ParamField>
+
+<ParamField query="requestId" type="string" required={false}>
+  Unique identifier of the transfer request. E.g. `"561287547935260672"`.
+</ParamField>
+
+<ParamField query="assetSymbol" type="string" required={false}>
+  Asset symbol to filter by. E.g. `BTC`.
+</ParamField>
+
+<ParamField query="createdAtDatetime[gte]" type="string" required>
+  Start of the datetime window (ISO 8601 with millisecond).
+</ParamField>
+
+<ParamField query="createdAtDatetime[lte]" type="string" required>
+  End of the datetime window (ISO 8601 with millisecond).
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/history/transfer?tradingAccountId=111000000000001&createdAtDatetime%5Bgte%5D=2024-09-01T00%3A00%3A00.000Z&createdAtDatetime%5Blte%5D=2024-09-30T23%3A59%3A59.000Z" \
+  -H "Authorization: Bearer <JWT>"
+```
+
+---
+
+## POST /trading-api/v1/simulate-portfolio-margin
+
+Simulates portfolio margin requirements based on your current portfolio balances. Optionally append hypothetical position details to see simulated results.
+
+<Note>
+  **Authentication:** Required.
+</Note>
+
+### Query Parameters
+
+<ParamField query="includeExisting" type="boolean" required={false}>
+  Whether to include existing portfolio positions in the simulation.
+</ParamField>
+
+### Response Fields
+
+<ResponseField name="collateralUSD" type="string">
+  Total collateral in USD. E.g. `"13000.0000"`.
+</ResponseField>
+
+<ResponseField name="borrowedUSD" type="string">
+  Total borrowed amount in USD.
+</ResponseField>
+
+<ResponseField name="initialMarginUSD" type="string">
+  Minimum margin required to purposefully increase risk.
+</ResponseField>
+
+<ResponseField name="warningMarginUSD" type="string">
+  Margin level triggering warning notifications.
+</ResponseField>
+
+<ResponseField name="liquidationMarginUSD" type="string">
+  Minimum margin required to avoid liquidation.
+</ResponseField>
+
+<ResponseField name="fullLiquidationMarginUSD" type="string">
+  Margin level at which full liquidation occurs.
+</ResponseField>
+
+<ResponseField name="defaultedMarginUSD" type="string">
+  Margin level at which the account enters defaulted state.
+</ResponseField>
+
+<ResponseField name="liquidityAddonUSD" type="string">
+  Expected market impact of unwinding the portfolio.
+</ResponseField>
+
+<ResponseField name="marketRiskUSD" type="string">
+  Worst-case portfolio loss from scenario analysis.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X POST "https://api.exchange.bullish.com/trading-api/v1/simulate-portfolio-margin?includeExisting=true" \
+  -H "Authorization: Bearer <JWT>" \
+  -H "Content-Type: application/json"
+```
+
+---
+
+## GET /trading-api/v1/assets
+
+Returns the list of all supported assets on the exchange. Public endpoint.
+
+<Note>
+  **Authentication:** Not required.
+</Note>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/assets"
+```
+
+---
+
+## GET /trading-api/v1/assets/{symbol}
+
+Returns details for a specific asset by its symbol.
+
+<Note>
+  **Authentication:** Not required.
+</Note>
+
+### Path Parameters
+
+<ParamField path="symbol" type="string" required>
+  Asset symbol, e.g. `BTC`.
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/assets/BTC"
+```
+
+---
+
+## GET /trading-api/v1/nonce
+
+Returns the current nonce range. The lower bound is the EPOCH start of the current day in microseconds; the upper bound is the EPOCH end of the current day in microseconds. Used to generate valid `BX-NONCE` values for signed requests.
+
+<Note>
+  **Authentication:** Required. **Rate limited:** No.
+</Note>
+
+### Response Fields
+
+<ResponseField name="lowerBound" type="integer">
+  Lower bound of the valid nonce range (microseconds). E.g. `8455`.
+</ResponseField>
+
+<ResponseField name="upperBound" type="integer">
+  Upper bound of the valid nonce range (microseconds). E.g. `9455`.
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X GET "https://api.exchange.bullish.com/trading-api/v1/nonce" \
+  -H "Authorization: Bearer <JWT>"
+```
+
+### Example Response
+
+```json
+{
+  "lowerBound": 1728000000000000,
+  "upperBound": 1728086399999999
+}
+```

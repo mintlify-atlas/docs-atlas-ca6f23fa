@@ -1,0 +1,124 @@
+---
+title: "Numeric Precision and Data Formats in the Bullish Exchange API"
+sidebarTitle: "Precision & Formats"
+description: "How price, quantity, timestamps, and numeric identifiers are formatted in the Bullish Exchange API — asset precision, base/quote conventions, and epoch time."
+---
+
+The Bullish Trading API uses consistent conventions for how numbers, timestamps, and identifiers are represented. Understanding these conventions is essential for submitting valid orders and correctly parsing API responses.
+
+## Timestamps
+
+All timestamps in the API are [EPOCH time](https://en.wikipedia.org/wiki/Unix_time) (Unix time). Unless otherwise noted in a specific endpoint's documentation, timestamps are expressed in **milliseconds**.
+
+Response fields typically carry both a raw timestamp and a human-readable datetime:
+
+| Field | Format | Example |
+|---|---|---|
+| `createdAtTimestamp` | EPOCH milliseconds (string) | `"1639464207402"` |
+| `createdAtDatetime` | ISO 8601 UTC (string) | `"2018-11-18T00:00:00.000Z"` |
+
+<Note>
+  Numeric timestamp values are returned as strings in JSON responses (e.g., `"1639464207402"` rather than `1639464207402`). Use string-to-integer conversion rather than expecting a native JSON number.
+</Note>
+
+## Market Structure: Base and Quote Assets
+
+Every market on Bullish is made up of two assets:
+
+- **Base asset** — the asset being bought or sold. The order **quantity** is denominated in the base asset.
+- **Quote asset** — the asset used to express price. The order **price** is denominated in the quote asset.
+
+For example, in the `BTCUSD` market:
+- `BTC` is the base asset → quantities are in BTC
+- `USD` is the quote asset → prices are in USD
+
+A buy order for 1 BTC at $52,000 in the `BTCUSD` market has a `quantity` of `1.00000000` (BTC) and a `price` of `52000.0000` (USD).
+
+## Asset Precision
+
+Precision defines the number of decimal places used to express a value. Each asset has its own precision.
+
+For example, BTC has a precision of **8**, which means quantities in any BTC market must always be expressed with exactly 8 decimal places. A quantity of 1 BTC must be submitted as `1.00000000` — not `1` or `1.0`.
+
+The two precision fields you will encounter in market and asset responses are:
+
+| Field | Applies to |
+|---|---|
+| `basePrecision` | Quantity (denominated in the base asset) |
+| `quotePrecision` | Price (denominated in the quote asset) |
+
+### Retrieving Precision Values
+
+You can retrieve precision information from two groups of endpoints:
+
+**Asset precision** (precision of an asset independent of any market):
+
+```bash
+# All supported assets
+GET /trading-api/v1/assets
+
+# A specific asset by symbol
+GET /trading-api/v1/assets/{symbol}
+```
+
+**Market precision** (base and quote precision in the context of a specific market):
+
+```bash
+# All supported markets
+GET /trading-api/v1/markets
+
+# A specific market by symbol
+GET /trading-api/v1/markets/{symbol}
+```
+
+<Tip>
+  Always query `/trading-api/v1/markets/{symbol}` before placing orders on a new market to confirm the correct `basePrecision` and `quotePrecision` values. Submitting a quantity or price with the wrong number of decimal places will result in a rejected order.
+</Tip>
+
+## Numeric Identifiers: nonce and handle
+
+The `nonce` and `handle` fields are 64-bit signed integer (`i64`) values. They must **not** have leading zeros.
+
+| Value | Valid? |
+|---|---|
+| `9990822212000000` | ✅ Valid |
+| `009990822212000000` | ❌ Invalid — leading zeros not permitted |
+
+Sending an identifier with leading zeros will cause the request to be rejected.
+
+## String Representations of Numeric Fields
+
+Many numeric fields in the API — including quantities, prices, fees, and identifiers — are returned as JSON strings rather than JSON numbers. This is intentional: it preserves full precision for large integers and high-precision decimals that may exceed the safe range of IEEE 754 floating-point numbers.
+
+Examples from an order response:
+
+```json
+{
+  "baseFee": "0.00000000",
+  "orderId": "390755652232282113",
+  "price": "8520.7000",
+  "quantity": "1.00000000",
+  "quantityFilled": "0.00000000",
+  "quoteAmount": "0.0000",
+  "quoteFee": "0.0003",
+  "createdAtTimestamp": "1639464207402"
+}
+```
+
+Parse these fields with a decimal or arbitrary-precision library rather than a standard floating-point type to avoid rounding errors.
+
+## Order timeInForce Values
+
+The `timeInForce` field on an order controls how long the order remains active. The supported values are:
+
+| Value | Name | Behaviour |
+|---|---|---|
+| `GTC` | Good Until Cancelled | The order remains open indefinitely until it is fully filled or explicitly cancelled. |
+| `FOK` | Fill or Kill | If the order cannot be immediately filled in full, it is cancelled entirely. |
+| `IOC` | Immediate or Cancel | The order is filled immediately, in full or in part; any unfilled remainder is cancelled. |
+
+## Response Forward-Compatibility
+
+<Note>
+  The Bullish API may add new fields to existing response payloads at any time. Do not use strict deserialisation — configure your JSON parser to ignore unknown fields rather than failing on them. This ensures your integration remains compatible with future API enhancements without requiring code changes.
+</Note>

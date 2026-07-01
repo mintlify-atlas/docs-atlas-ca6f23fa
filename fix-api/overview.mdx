@@ -1,0 +1,95 @@
+---
+title: "Bullish Exchange FIX Protocol API for Institutional Clients"
+sidebarTitle: "Overview"
+description: "Connect to Bullish Exchange via FIX protocol over AWS PrivateLink or GCP Private Service Connect — specification versions, connectivity requirements, and getting started."
+---
+
+The Bullish Exchange FIX API enables high-performance, low-latency order management and trade execution using the industry-standard Financial Information eXchange (FIX) protocol. It is purpose-built for institutional trading workflows that require deterministic, reliable connectivity with minimal overhead.
+
+<Note>
+  The FIX API is available to **institutional clients only** and is exclusively accessible through private network connectivity — either AWS PrivateLink or GCP Private Service Connect. Direct public internet access is not supported.
+</Note>
+
+## Private Connectivity Options
+
+Because the FIX API is not exposed to the public internet, you must establish a private network connection before you can connect. Bullish supports two private connectivity methods:
+
+<CardGroup cols={2}>
+  <Card title="AWS PrivateLink" icon="aws">
+    AWS PrivateLink provides private connectivity between your VPC and the Bullish FIX service endpoint without exposing your traffic to the public internet. Bullish will provide the published service IDs required to establish the connection. Once the PrivateLink connection is successfully established, you will be able to connect to the Bullish FIX service endpoint.
+  </Card>
+  <Card title="GCP Private Service Connect" icon="google">
+    GCP Private Service Connect allows you to access the Bullish FIX managed service privately from inside your VPC network. Bullish will provide the published service IDs required to establish the connection. Once the Private Service Connect connection is successfully established, you will be able to connect to the Bullish FIX service endpoint.
+  </Card>
+</CardGroup>
+
+## Connectivity Recommendations
+
+<Tip>
+  For GCP deployments, the most optimal connection is to operate within the **asia-southeast1-a** Availability Zone. Note that this may change at any time and without warning to another Availability Zone within `asia-southeast1` for operational reasons.
+</Tip>
+
+For AWS or GCP connectivity details and to obtain your published service IDs, contact your **Bullish sales representative**.
+
+## Getting Started
+
+<Steps>
+  <Step title="Contact Your Sales Representative">
+    Reach out to your Bullish sales representative to confirm institutional client eligibility and to receive the published service IDs for either AWS PrivateLink or GCP Private Service Connect.
+  </Step>
+  <Step title="Establish Private Connectivity">
+    Use the service IDs provided by Bullish to create your PrivateLink endpoint (AWS) or Private Service Connect endpoint (GCP) within your VPC. Verify the connection is active before proceeding.
+  </Step>
+  <Step title="Review the FIX Specification">
+    Download and review the latest Bullish FIX Protocol Specification (v1.0.13) and the FIX Dictionary XML to understand message types, fields, and session management requirements.
+  </Step>
+  <Step title="Connect and Test">
+    Use your FIX engine to connect to the Bullish FIX service endpoint over your established private connection. Test with the sandbox environment before going live.
+  </Step>
+</Steps>
+
+## FIX Protocol Specifications
+
+The current specification is **Bullish FIX Protocol Specification v1.0.13**. All previous versions are available below for reference.
+
+<CardGroup cols={2}>
+  <Card title="FIX Specification v1.0.13 (Current)" icon="file-pdf" href="https://github.com/bullish-exchange/api-docs/blob/master/src/fix-api/Bullish%20FIX%20Protocol%20Specification%20v1.0.13.pdf">
+    The current and recommended FIX protocol specification for all new integrations.
+  </Card>
+  <Card title="FIX Dictionary XML" icon="file-code" href="https://github.com/bullish-exchange/api-docs/blob/master/src/fix-api/fix-dictionary.xml">
+    FIX Dictionary XML file for use with your FIX engine's data dictionary configuration.
+  </Card>
+  <Card title="FIX Specification v1.0.12" icon="file-pdf" href="https://github.com/bullish-exchange/api-docs/blob/master/src/fix-api/Bullish%20FIX%20Protocol%20Specification%20v1.0.12.pdf">
+    FIX Protocol Specification version 1.0.12.
+  </Card>
+  <Card title="FIX Specification v1.0.11" icon="file-pdf" href="https://github.com/bullish-exchange/api-docs/blob/master/src/fix-api/Bullish%20FIX%20Protocol%20Specification%20v1.0.11.pdf">
+    FIX Protocol Specification version 1.0.11.
+  </Card>
+  <Card title="FIX Specification v1.0.10" icon="file-pdf" href="https://github.com/bullish-exchange/api-docs/blob/master/src/fix-api/Bullish%20FIX%20Protocol%20Specification%20v1.0.10.pdf">
+    FIX Protocol Specification version 1.0.10.
+  </Card>
+  <Card title="FIX Specification v1.0.9" icon="file-pdf" href="https://github.com/bullish-exchange/api-docs/blob/master/src/fix-api/Bullish%20FIX%20Protocol%20Specification%20v1.0.9.pdf">
+    FIX Protocol Specification version 1.0.9.
+  </Card>
+  <Card title="FIX Specification v1.0.8" icon="file-pdf" href="https://github.com/bullish-exchange/api-docs/blob/master/src/fix-api/Bullish%20FIX%20Protocol%20Specification%20v1.0.8.pdf">
+    FIX Protocol Specification version 1.0.8.
+  </Card>
+  <Card title="FIX Specification v1.0.7" icon="file-pdf" href="https://github.com/bullish-exchange/api-docs/blob/master/src/fix-api/Bullish%20FIX%20Protocol%20Specification%20v1.0.7.pdf">
+    FIX Protocol Specification version 1.0.7.
+  </Card>
+  <Card title="FIX Specification v1.0.6" icon="file-pdf" href="https://github.com/bullish-exchange/api-docs/blob/master/src/fix-api/Bullish%20FIX%20Protocol%20Specification%20v1.0.6.pdf">
+    FIX Protocol Specification version 1.0.6.
+  </Card>
+  <Card title="FIX Specification v1.0.5" icon="file-pdf" href="https://github.com/bullish-exchange/api-docs/blob/master/src/fix-api/Bullish%20FIX%20Protocol%20Specification%20v1.0.5.pdf">
+    FIX Protocol Specification version 1.0.5.
+  </Card>
+  <Card title="FIX Specification v1.0.4" icon="file-pdf" href="https://github.com/bullish-exchange/api-docs/blob/master/src/fix-api/Bullish%20FIX%20Protocol%20Specification%20v1.0.4.pdf">
+    FIX Protocol Specification version 1.0.4.
+  </Card>
+  <Card title="FIX Specification v1.0.3" icon="file-pdf" href="https://github.com/bullish-exchange/api-docs/blob/master/src/fix-api/Bullish%20FIX%20Protocol%20Specification%20v1.0.3.pdf">
+    FIX Protocol Specification version 1.0.3.
+  </Card>
+  <Card title="FIX Specification v1.0.2" icon="file-pdf" href="https://github.com/bullish-exchange/api-docs/blob/master/src/fix-api/Bullish%20FIX%20Protocol%20Specification%20v1.0.2.pdf">
+    FIX Protocol Specification version 1.0.2.
+  </Card>
+</CardGroup>

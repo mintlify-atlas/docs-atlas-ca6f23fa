@@ -1,0 +1,127 @@
+---
+title: "Generate JWT Tokens for Bullish Exchange API Requests"
+sidebarTitle: "JWT Tokens"
+description: "Step-by-step guide to generating JWT bearer tokens using ECDSA or HMAC API keys — request format, required fields, and token lifetime."
+---
+
+Every authenticated request to the Bullish Trading API requires a JWT bearer token in the `Authorization` header. Tokens are valid for **24 hours** and are issued by the Bullish login endpoints. The exact endpoint and request format differ depending on whether you are using an ECDSA or HMAC API key.
+
+<Note>
+  The `nonce` used in the login request payload is an epoch timestamp in seconds. This login API nonce is entirely separate from — and has no connection to — the `BX-NONCE` header nonce used in orders and other authenticated API requests.
+</Note>
+
+## Using the Token
+
+Once you have obtained a JWT token, include it in every authenticated request as a bearer token:
+
+```http
+Authorization: Bearer <JWT_TOKEN>
+```
+
+The token remains valid for 24 hours. After expiry you must log in again to obtain a new token.
+
+## Generating a JWT Token
+
+<Tabs>
+  <Tab title="ECDSA API Key">
+    ### POST /trading-api/v2/users/login
+
+    To generate a JWT token using an ECDSA API key, send a `POST` request to `/trading-api/v2/users/login` with the following body:
+
+    **Request body fields:**
+
+    | Field | Description |
+    |---|---|
+    | `publicKey` | Your ECDSA public key. New line characters must be UNIX encoded (`\n`, not `\r\n` or `\r`). |
+    | `userId` | Your Bullish user ID, extracted by base64-decoding the `metadata` string of your ECDSA API key. |
+    | `signature` | A signed JSON string encoding of `loginPayload`. See the [api-examples](https://github.com/bullish-exchange/api-examples/blob/master/session/generate_jwt_ecdsa.py) for how to compute this. |
+    | `loginPayload.nonce` | Epoch timestamp in seconds. |
+    | `loginPayload.expirationTime` | Epoch timestamp in seconds, set to 5 minutes in the future. |
+    | `loginPayload.biometricsUsed` | Set to `false`. |
+    | `loginPayload.sessionKey` | Set to `null`. |
+
+    **Request body:**
+
+    ```json
+    {
+      "publicKey": "<PUBLIC_KEY>",
+      "signature": "<SIGNATURE>",
+      "loginPayload": {
+        "userId": "100008771",
+        "nonce": 1638776636,
+        "expirationTime": 1638776936,
+        "biometricsUsed": false,
+        "sessionKey": null
+      }
+    }
+    ```
+
+    **Response:**
+
+    ```json
+    {
+      "authorizer": "<AUTHORIZER>",
+      "token": "<JWT_TOKEN>"
+    }
+    ```
+
+    The `token` value is your JWT bearer token. The `authorizer` value is used as the `authorizer` field in signed command payloads.
+
+    See the [generate JWT (ECDSA)](https://github.com/bullish-exchange/api-examples/blob/master/session/generate_jwt_ecdsa.py) Python sample script for a complete implementation.
+  </Tab>
+  <Tab title="HMAC API Key">
+    ### GET /trading-api/v1/users/hmac/login
+
+    To generate a JWT token using an HMAC API key, send a `GET` request to `/trading-api/v1/users/hmac/login` with the following required headers:
+
+    | Header | Description |
+    |---|---|
+    | `BX-TIMESTAMP` | Number of milliseconds since the UNIX epoch. |
+    | `BX-NONCE` | Client-side incremented 64-bit unsigned integer. |
+    | `BX-PUBLIC-KEY` | The public key for the HMAC key being used to generate the JWT. |
+    | `BX-SIGNATURE` | The signed message for this login request (see below). |
+
+    #### Constructing the BX-SIGNATURE for HMAC Login
+
+    To compute the `BX-SIGNATURE` for an HMAC login request, concatenate the following fields in order (no separator):
+
+    ```
+    <BX-TIMESTAMP><BX-NONCE>GET/trading-api/v1/users/hmac/login
+    ```
+
+    That is:
+    1. The value provided for the `BX-TIMESTAMP` header
+    2. The value provided for the `BX-NONCE` header
+    3. The request method: `GET`
+    4. The request path: `/trading-api/v1/users/hmac/login`
+
+    Sign this concatenated string with your HMAC secret key to produce the `BX-SIGNATURE` value.
+
+    **Response:**
+
+    ```json
+    {
+      "authorizer": "<AUTHORIZER>",
+      "token": "<JWT_TOKEN>"
+    }
+    ```
+
+    <Warning>
+      JWT tokens generated with an HMAC API Key are valid for **trading endpoints only**. They cannot be used to access custody endpoints. Use an ECDSA API key if you need custody access.
+    </Warning>
+
+    See the [generate JWT (HMAC)](https://github.com/bullish-exchange/api-examples/blob/master/session/generate_jwt_hmac.py) Python sample script for a complete implementation.
+  </Tab>
+</Tabs>
+
+## Logging Out
+
+Users can manage their active sessions by explicitly logging out. Call `GET /trading-api/v1/users/logout` with the JWT token in the `Authorization` header to invalidate the session. This is recommended when a session is no longer needed.
+
+## Code Examples
+
+Sample Python scripts for generating JWT tokens are available in the official [api-examples](https://github.com/bullish-exchange/api-examples/blob/master/session) repository:
+
+- [`generate_jwt_ecdsa.py`](https://github.com/bullish-exchange/api-examples/blob/master/session/generate_jwt_ecdsa.py) — ECDSA-based login
+- [`generate_jwt_hmac.py`](https://github.com/bullish-exchange/api-examples/blob/master/session/generate_jwt_hmac.py) — HMAC-based login
+- [`get_trading_accounts.py`](https://github.com/bullish-exchange/api-examples/blob/master/session/get_trading_accounts.py) — Fetching trading account IDs after login
